@@ -74,6 +74,7 @@ import { DiscardCardsFromHand, IDiscardCardsFromHandProperties } from './Discard
 import { DiscardEntireHandSystem, IDiscardEntireHandSystemProperties } from './DiscardEntireHandSystem';
 import { ISystemArrayOrFactory } from '../core/gameSystem/AggregateSystem';
 import { CardAttackLastingEffectSystem, ICardAttackLastingEffectProperties } from './CardAttackLastingEffectSystem';
+import { DelayedEffectSystem, IDelayedEffectSystemProperties } from './DelayedEffectSystem';
 // import { TakeControlAction, TakeControlProperties } from './TakeControlAction';
 // import { TriggerAbilityAction, TriggerAbilityProperties } from './TriggerAbilityAction';
 // import { TurnCardFacedownAction, TurnCardFacedownProperties } from './TurnCardFacedownAction';
@@ -357,6 +358,9 @@ export function readyResources<TContext extends AbilityContext = AbilityContext>
 }
 export function playerLastingEffect<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IPlayerLastingEffectProperties>): GameSystem<TContext> {
     return new PlayerLastingEffectSystem<TContext>(propertyFactory);
+}
+export function delayedEffect<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDelayedEffectSystemProperties>): GameSystem<TContext> {
+    return new DelayedEffectSystem<TContext>(propertyFactory);
 }
 
 // //////////////
