@@ -13,13 +13,13 @@ import * as EnumHelpers from '../utils/EnumHelpers';
  * For example, `{ aspect: Aspect.Cunning, trait: [Trait.Rebel, Trait.Jedi] }` will match all Cunning cards
  * that are Rebel and / or Jedi.
  */
-export interface IZoneCardFilterProperties {
+export interface IZoneCardFilterProperties<TCard extends Card = Card> {
     aspect?: Aspect | Aspect[];
-    condition?: (card: Card) => boolean;
+    condition?: (card: TCard) => boolean;
     keyword?: KeywordName | KeywordName[];
     trait?: Trait | Trait[];
     type?: CardTypeFilter | CardTypeFilter[];
-    otherThan?: Card;
+    otherThan?: TCard;
 }
 
 /** Interface for zones that use a basic add card / remove card API */

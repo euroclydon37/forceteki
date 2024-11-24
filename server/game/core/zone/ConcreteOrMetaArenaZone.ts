@@ -7,7 +7,7 @@ import Game from '../Game';
 import Player from '../Player';
 import { IZoneCardFilterProperties, ZoneAbstract } from './ZoneAbstract';
 
-export interface IArenaZoneCardFilterProperties extends IZoneCardFilterProperties {
+export interface IArenaZoneCardFilterProperties<TCard extends InPlayCard = InPlayCard> extends IZoneCardFilterProperties<TCard> {
     controller?: Player;
 }
 
@@ -30,11 +30,11 @@ export abstract class ConcreteOrMetaArenaZone extends ZoneAbstract<InPlayCard> {
         return super.hasSomeCard(filter);
     }
 
-    public getUnitCards(filter?: Omit<IArenaZoneCardFilterProperties, 'type'>): UnitCard[] {
+    public getUnitCards(filter?: Omit<IArenaZoneCardFilterProperties<UnitCard>, 'type'>): UnitCard[] {
         return this.getCards({ ...filter, type: WildcardCardType.Unit }) as UnitCard[];
     }
 
-    public getUpgradeCards(filter?: Omit<IArenaZoneCardFilterProperties, 'type'>): UpgradeCard[] {
+    public getUpgradeCards(filter?: Omit<IArenaZoneCardFilterProperties<UpgradeCard>, 'type'>): UpgradeCard[] {
         return this.getCards({ ...filter, type: WildcardCardType.Upgrade }) as UpgradeCard[];
     }
 }

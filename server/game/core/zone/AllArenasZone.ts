@@ -1,5 +1,7 @@
 import { InPlayCard } from '../card/baseClasses/InPlayCard';
 import { Card } from '../card/Card';
+import { UnitCard } from '../card/CardTypes';
+import { UpgradeCard } from '../card/UpgradeCard';
 import { ZoneName, WildcardCardType, WildcardZoneName } from '../Constants';
 import Game from '../Game';
 import Player from '../Player';
@@ -9,13 +11,14 @@ import { ConcreteOrMetaArenaZone, IArenaZoneCardFilterProperties } from './Concr
 import { GroundArenaZone } from './GroundArenaZone';
 import { SpaceArenaZone } from './SpaceArenaZone';
 
-export interface IAllArenasZoneCardFilterProperties extends IArenaZoneCardFilterProperties {
+export interface IAllArenasZoneCardFilterProperties<TCard extends InPlayCard = InPlayCard> extends IArenaZoneCardFilterProperties<TCard> {
     arena?: ZoneName.SpaceArena | ZoneName.GroundArena | WildcardZoneName.AnyArena;
 }
 
 // used for player.getArenaCards, declared here since that file is still JS
-export type IAllArenasForPlayerCardFilterProperties = Omit<IAllArenasZoneCardFilterProperties, 'controller'>;
-export type IAllArenasForPlayerSpecificTypeCardFilterProperties = Omit<IAllArenasForPlayerCardFilterProperties, 'type'>;
+export type IAllArenasForPlayerCardFilterProperties<TCard extends InPlayCard = InPlayCard> = Omit<IAllArenasZoneCardFilterProperties<TCard>, 'controller'>;
+export type IAllArenasForPlayerUnitCardFilterProperties = Omit<IAllArenasZoneCardFilterProperties<UnitCard>, 'type'>;
+export type IAllArenasForPlayerUpgradeCardFilterProperties = Omit<IAllArenasZoneCardFilterProperties<UpgradeCard>, 'type'>;
 
 /**
  * This is a meta-zone that allows doing operations across both the ground arena and space arena as one.

@@ -128,7 +128,7 @@ export class AttackStepsSystem<TContext extends AbilityContext = AbilityContext>
         }
 
         if (!properties.attacker.hasSomeKeyword(KeywordName.Saboteur)) { // If not Saboteur, do a Sentinel check
-            if (targetCard.controller.getUnitsInPlay(attackerZone, (card) => card.hasSomeKeyword(KeywordName.Sentinel)).length > 0) {
+            if (targetCard.controller.hasSomeArenaUnit({ arena: attackerZone, keyword: KeywordName.Sentinel })) {
                 return targetCard.hasSomeKeyword(KeywordName.Sentinel);
             }
         }

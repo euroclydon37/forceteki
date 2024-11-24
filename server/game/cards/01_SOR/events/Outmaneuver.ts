@@ -26,16 +26,16 @@ export default class Outmaneuver extends EventCard {
 
     private eventEffect(arena: Arena) {
         return AbilityHelper.immediateEffects.conditional((context) => ({
-            condition: context.game.getPlayers().some((player) => player.getUnitsInPlay(arena).length > 0),
+            condition: context.game.getPlayers().some((player) => player.hasSomeArenaUnit({ arena })),
             onTrue: AbilityHelper.immediateEffects.exhaust((context) => {
                 return {
-                    target: context.game.getPlayers().reduce((units, player) => units.concat(player.getUnitsInPlay(arena)), [])
+                    target: context.game.getPlayers().reduce((units, player) => units.concat(player.getArenaUnits({ arena })), [])
                 };
             }),
             onFalse: AbilityHelper.immediateEffects.noAction((context) => {
                 return {
                     // If there are no units in play, return no legal target so the card is autoresolved.
-                    hasLegalTarget: context.game.getPlayers().some((player) => player.getUnitsInPlay().length > 0)
+                    hasLegalTarget: context.game.getPlayers().some((player) => player.hasSomeArenaUnit({ arena }))
                 };
             })
         }));
