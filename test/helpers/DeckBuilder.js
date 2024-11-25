@@ -35,6 +35,37 @@ class DeckBuilder {
         return cards;
     }
 
+    getOwnedCards(playerNumber, playerOptions, oppOptions, arena = null) {
+        // let playerCards = {};
+        let { groundArena, spaceArena, ...playerCards } = playerOptions;
+
+        // if (playerOptions.leader) {
+        //     playerCards.leader = playerOptions.leader;
+        // }
+        // if (playerOptions.base) {
+        //     playerCards.base = playerOptions.base;
+        // }
+        // if (playerOptions.hand) {
+        //     playerCards.hand = playerOptions.hand;
+        // }
+        // if (playerOptions.deck) {
+        //     playerCards.deck = playerOptions.deck;
+        // }
+
+        if ((arena === 'groundArena' || arena == null) && playerOptions.groundArena) {
+            const playerControlled = playerOptions.groundArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
+            const oppControlled = oppOptions.groundArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
+            playerCards.groundArena = (playerControlled || []).concat((oppControlled || []));
+        }
+        if (arena === 'spaceArena' || arena == null) {
+            const playerControlled = playerOptions.spaceArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
+            const oppControlled = oppOptions.spaceArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
+            playerCards.spaceArena = (playerControlled || []).concat((oppControlled || []));
+        }
+
+        return playerCards;
+    }
+
     customDeck(playerNumber, playerCards = {}, phase) {
         if (Array.isArray(playerCards.leader)) {
             throw new TestSetupError('Test leader must not be specified as an array');
@@ -47,6 +78,7 @@ class DeckBuilder {
         let inPlayCards = [];
 
         const namedCards = this.getAllNamedCards(playerCards);
+        let resources = [];
 
         allCards.push(this.getLeaderCard(playerCards, playerNumber));
         allCards.push(this.getBaseCard(playerCards, playerNumber));
@@ -54,13 +86,13 @@ class DeckBuilder {
         // if user didn't provide explicit resource cards, create default ones to be added to deck
         // if the phase is setup the playerCards.resources becomes []
         if (phase !== 'setup') {
-            playerCards.resources = this.padCardListIfNeeded(playerCards.resources, defaultResourceCount);
+            resources = this.padCardListIfNeeded(playerCards.resources, defaultResourceCount);
         } else {
-            playerCards.resources = [];
+            resources = [];
         }
         playerCards.deck = this.padCardListIfNeeded(playerCards.deck, defaultDeckSize);
 
-        allCards.push(...playerCards.resources);
+        allCards.push(...resources);
         allCards.push(...playerCards.deck);
 
         /**
@@ -81,7 +113,7 @@ class DeckBuilder {
         // Collect all the cards together
         allCards = allCards.concat(inPlayCards);
 
-        return [this.buildDeck(allCards), namedCards];
+        return [this.buildDeck(allCards), namedCards, resources];
     }
 
     getAllNamedCards(playerObject) {

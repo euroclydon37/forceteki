@@ -218,7 +218,9 @@ class PlayerInteractionWrapper {
             if (!options.card) {
                 throw new TestSetupError('You must provide a card name');
             }
-            var card = this.findCardByName(options.card, prevZones);
+            const opponentControlled = options.hasOwnProperty('owner') && options.owner !== this.player.nameField;
+
+            var card = this.findCardByName(options.card, prevZones, opponentControlled ? 'opponent' : null);
 
             if (card.isUnit() && card.defaultArena !== arenaName) {
                 throw new TestSetupError(`Attempting to place ${card.internalName} in invalid arena '${arenaName}'`);
@@ -226,6 +228,11 @@ class PlayerInteractionWrapper {
 
             // Move card to play
             this.moveCard(card, arenaName);
+
+            if (opponentControlled) {
+                card.takeControl(card.owner.opponent);
+            }
+
             // Set exhausted state (false by default)
             if (options.exhausted != null) {
                 options.exhausted ? card.exhaust() : card.ready();
@@ -238,9 +245,9 @@ class PlayerInteractionWrapper {
             }
 
             // TODO Rework the card ownership logic when building decks in tests
-            if (options.owner != null) {
-                card.owner = this.game.getPlayerByName(options.owner);
-            }
+            // if (options.owner != null) {
+            //     card.owner = this.game.getPlayerByName(options.owner);
+            // }
 
             // Get the upgrades
             if (options.upgrades) {

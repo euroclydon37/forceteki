@@ -6,6 +6,7 @@ describe('Change of Heart', function() {
                     phase: 'action',
                     player1: {
                         hand: ['change-of-heart'],
+                        groundArena: [{ card: 'pyke-sentinel', owner: 'player2' }],
                         spaceArena: ['cartel-spacer']
                     },
                     player2: {
@@ -17,7 +18,7 @@ describe('Change of Heart', function() {
             it('takes control and will return non-leader unit to owner\'s control', function () {
                 const { context } = contextRef;
                 context.player1.clickCard(context.changeOfHeart);
-                expect(context.player1).toBeAbleToSelectExactly([context.cartelSpacer, context.battlefieldMarine, context.wampa]);
+                expect(context.player1).toBeAbleToSelectExactly([context.cartelSpacer, context.battlefieldMarine, context.wampa, context.pykeSentinel]);
                 context.player1.clickCard(context.wampa);
                 expect(context.wampa).toBeInZone('groundArena', context.player1);
 
@@ -30,7 +31,7 @@ describe('Change of Heart', function() {
             it('takes control and will return non-leader unit to owner\'s control', function () {
                 const { context } = contextRef;
                 context.player1.clickCard(context.changeOfHeart);
-                expect(context.player1).toBeAbleToSelectExactly([context.cartelSpacer, context.battlefieldMarine, context.wampa]);
+                expect(context.player1).toBeAbleToSelectExactly([context.cartelSpacer, context.battlefieldMarine, context.wampa, context.pykeSentinel]);
                 context.player1.clickCard(context.battlefieldMarine);
                 expect(context.battlefieldMarine).toBeInZone('groundArena', context.player1);
 

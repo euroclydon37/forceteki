@@ -842,9 +842,12 @@ global.integration = function (definitions) {
                     this.game.initiativePlayer = this.player2Object;
                 }
 
+                const player1OwnedCards = deckBuilder.getOwnedCards(1, options.player1, options.player2);
+                const player2OwnedCards = deckBuilder.getOwnedCards(2, options.player2, options.player1);
+
                 // pass decklists to players. they are initialized into real card objects in the startGame() call
-                const [deck1, namedCards1] = deckBuilder.customDeck(1, options.player1, options.phase);
-                const [deck2, namedCards2] = deckBuilder.customDeck(2, options.player2, options.phase);
+                const [deck1, namedCards1, resources1] = deckBuilder.customDeck(1, player1OwnedCards, options.phase);
+                const [deck2, namedCards2, resources2] = deckBuilder.customDeck(2, player2OwnedCards, options.phase);
 
                 this.player1.selectDeck(deck1);
                 this.player2.selectDeck(deck2);
@@ -873,9 +876,14 @@ global.integration = function (definitions) {
 
 
                 if (options.phase !== 'setup') {
+                    const p1OwnedGround = deckBuilder.getOwnedCards(1, options.player1, options.player2, 'groundArena');
+                    const p2OwnedGround = deckBuilder.getOwnedCards(2, options.player2, options.player1, 'groundArena');
+                    const p1OwnedSpace = deckBuilder.getOwnedCards(1, options.player1, options.player2, 'spaceArena');
+                    const p2OwnedSpace = deckBuilder.getOwnedCards(2, options.player2, options.player1, 'spaceArena');
+
                     // Resources
-                    this.player1.setResourceCards(options.player1.resources, ['outsideTheGame']);
-                    this.player2.setResourceCards(options.player2.resources, ['outsideTheGame']);
+                    this.player1.setResourceCards(resources1, ['outsideTheGame']);
+                    this.player2.setResourceCards(resources2, ['outsideTheGame']);
 
                     // Arenas
                     this.player1.setGroundArenaUnits(options.player1.groundArena, ['outsideTheGame']);
