@@ -323,7 +323,8 @@ class PlayerInteractionWrapper {
     attachOpponentOwnedUpgrades(opponentOwnedUpgrades = []) {
         opponentOwnedUpgrades.forEach((upgrade) => {
             const upgradeCard = this.findCardByName(upgrade.card, 'any', 'opponent');
-            const attachTo = this.findCardByName(upgrade.attachedTo);
+            const attachedCardAlsoOpponentControlled = upgrade.hasOwnProperty('attachedToOwner') && upgrade.attachedToOwner !== this.player.nameField;
+            const attachTo = attachedCardAlsoOpponentControlled ? this.findCardByName(upgrade.attachedTo, 'any', 'opponent') : this.findCardByName(upgrade.attachedTo);
             upgradeCard.attachTo(attachTo);
         });
     }

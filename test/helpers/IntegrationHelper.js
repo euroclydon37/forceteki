@@ -932,11 +932,6 @@ global.integration = function (definitions) {
 
 
                 if (options.phase !== 'setup') {
-                    const p1OwnedGround = deckBuilder.getOwnedCards(1, options.player1, options.player2, 'groundArena');
-                    const p2OwnedGround = deckBuilder.getOwnedCards(2, options.player2, options.player1, 'groundArena');
-                    const p1OwnedSpace = deckBuilder.getOwnedCards(1, options.player1, options.player2, 'spaceArena');
-                    const p2OwnedSpace = deckBuilder.getOwnedCards(2, options.player2, options.player1, 'spaceArena');
-
                     // Resources
                     this.player1.setResourceCards(resources1, ['outsideTheGame']);
                     this.player2.setResourceCards(resources2, ['outsideTheGame']);

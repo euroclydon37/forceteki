@@ -49,7 +49,10 @@ class DeckBuilder {
                 if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
                     card.upgrades.forEach((upgrade) => {
                         if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
-                            const oppUpgrade = { attachedTo: card.card, ...upgrade };
+                            let oppUpgrade = { attachedTo: card.card, ...upgrade };
+                            if (card.hasOwnProperty('owner')) {
+                                oppUpgrade.attachedToOwner = card.owner;
+                            }
                             opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
                             card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
                         }
@@ -66,7 +69,10 @@ class DeckBuilder {
                 if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
                     card.upgrades.forEach((upgrade) => {
                         if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
-                            const oppUpgrade = { attachedTo: card.card, ...upgrade };
+                            let oppUpgrade = { attachedTo: card.card, ...upgrade };
+                            if (card.hasOwnProperty('owner')) {
+                                oppUpgrade.attachedToOwner = card.owner;
+                            }
                             opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
                             card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
                         }
