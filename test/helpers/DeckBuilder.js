@@ -5,7 +5,7 @@ const TestSetupError = require('./TestSetupError.js');
 // defaults to fill in with if not explicitly provided by the test case
 const defaultLeader = { 1: 'darth-vader#dark-lord-of-the-sith', 2: 'luke-skywalker#faithful-friend' };
 const defaultBase = { 1: 'kestro-city', 2: 'administrators-tower' };
-const playerCardProperties = ['groundArena', 'spaceArena', 'hand', 'resources', 'deck', 'discard', 'leader', 'base'];
+const playerCardProperties = ['groundArena', 'spaceArena', 'hand', 'resources', 'deck', 'discard', 'leader', 'base', 'opponentAttachedUpgrades'];
 const deckFillerCard = 'underworld-thug';
 const defaultResourceCount = 20;
 const defaultDeckSize = 8; // buffer decks to prevent re-shuffling
@@ -36,32 +36,46 @@ class DeckBuilder {
     }
 
     getOwnedCards(playerNumber, playerOptions, oppOptions, arena = null) {
-        // let playerCards = {};
         let { groundArena, spaceArena, ...playerCards } = playerOptions;
 
-        // if (playerOptions.leader) {
-        //     playerCards.leader = playerOptions.leader;
-        // }
-        // if (playerOptions.base) {
-        //     playerCards.base = playerOptions.base;
-        // }
-        // if (playerOptions.hand) {
-        //     playerCards.hand = playerOptions.hand;
-        // }
-        // if (playerOptions.deck) {
-        //     playerCards.deck = playerOptions.deck;
-        // }
+        let opponentAttachedUpgrades = [];
 
         if ((arena === 'groundArena' || arena == null) && playerOptions.groundArena) {
             const playerControlled = playerOptions.groundArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
             const oppControlled = oppOptions.groundArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
             playerCards.groundArena = (playerControlled || []).concat((oppControlled || []));
+
+            oppOptions.groundArena?.forEach((card) => {
+                if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
+                    card.upgrades.forEach((upgrade) => {
+                        if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
+                            const oppUpgrade = { attachedTo: card.card, ...upgrade };
+                            opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
+                            card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
+                        }
+                    });
+                }
+            });
         }
         if (arena === 'spaceArena' || arena == null) {
             const playerControlled = playerOptions.spaceArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
             const oppControlled = oppOptions.spaceArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
             playerCards.spaceArena = (playerControlled || []).concat((oppControlled || []));
+
+            oppOptions.spaceArena?.forEach((card) => {
+                if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
+                    card.upgrades.forEach((upgrade) => {
+                        if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
+                            const oppUpgrade = { attachedTo: card.card, ...upgrade };
+                            opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
+                            card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
+                        }
+                    });
+                }
+            });
         }
+
+        playerCards.opponentAttachedUpgrades = opponentAttachedUpgrades;
 
         return playerCards;
     }
@@ -94,6 +108,9 @@ class DeckBuilder {
 
         allCards.push(...resources);
         allCards.push(...playerCards.deck);
+        playerCards.opponentAttachedUpgrades.forEach((card) => {
+            allCards.push(card.card);
+        });
 
         /**
          * Create the deck from cards in test - deck consists of cards in decks,
@@ -145,7 +162,9 @@ class DeckBuilder {
             playerEntry.forEach((card) => namedCards = namedCards.concat(this.getNamedCardsInPlayerEntry(card)));
         } else if ('card' in playerEntry) {
             namedCards.push(playerEntry.card);
-            namedCards = namedCards.concat(this.getUpgradesFromCard(playerEntry));
+            if (playerEntry.hasOwnProperty('upgrades')) {
+                namedCards = namedCards.concat(this.getUpgradesFromCard(playerEntry));
+            }
         } else {
             throw new TestSetupError(`Unknown test card specifier format: '${playerEntry}'`);
         }
@@ -220,7 +239,13 @@ class DeckBuilder {
                         !['shield', 'experience'].includes(upgrade)
                     );
 
-                    inPlayCards.push(...nonTokenUpgrades);
+                    for (const upgrade of nonTokenUpgrades) {
+                        if (typeof upgrade === 'string') {
+                            inPlayCards.push(upgrade);
+                        } else {
+                            inPlayCards.push(upgrade.card);
+                        }
+                    }
                 }
             }
         }

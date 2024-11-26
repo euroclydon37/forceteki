@@ -956,6 +956,9 @@ global.integration = function (definitions) {
                     // Set Leader state (deployed, exhausted, etc.)
                     this.player1.setLeaderStatus(options.player1.leader);
                     this.player2.setLeaderStatus(options.player2.leader);
+
+                    this.player1.attachOpponentOwnedUpgrades(player2OwnedCards.opponentAttachedUpgrades);
+                    this.player2.attachOpponentOwnedUpgrades(player1OwnedCards.opponentAttachedUpgrades);
                 }
 
                 // Set Base damage
@@ -970,7 +973,8 @@ global.integration = function (definitions) {
                 // note that if cards map to the same property name (i.e., same title), then they won't be added
                 const cardNamesAsProperties = Util.convertNonDuplicateCardNamesToProperties(
                     [this.player1, this.player2],
-                    [namedCards1, namedCards2]
+                    [namedCards1, namedCards2],
+                    player1OwnedCards.opponentAttachedUpgrades.concat(player2OwnedCards.opponentAttachedUpgrades)
                 );
                 this.cardPropertyNames = newContext.cardPropertyNames = [];
                 cardNamesAsProperties.forEach((card) => {

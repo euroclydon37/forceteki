@@ -251,16 +251,17 @@ class PlayerInteractionWrapper {
 
             // Get the upgrades
             if (options.upgrades) {
-                options.upgrades.forEach((upgradeName) => {
+                options.upgrades.forEach((upgrade) => {
+                    const upgradeName = (typeof upgrade === 'string') ? upgrade : upgrade.card;
                     const isToken = ['shield', 'experience'].includes(upgradeName);
-                    let upgrade;
+                    let upgradeCard;
                     if (isToken) {
-                        upgrade = this.game.generateToken(this.player, upgradeName);
+                        upgradeCard = this.game.generateToken(this.player, upgradeName);
                     } else {
-                        upgrade = this.findCardByName(upgradeName, prevZones);
+                        upgradeCard = this.findCardByName(upgradeName, prevZones);
                     }
 
-                    upgrade.attachTo(card);
+                    upgradeCard.attachTo(card);
                 });
             }
             if (options.damage !== undefined) {
@@ -316,6 +317,14 @@ class PlayerInteractionWrapper {
             var card = this.findCardByName(name, prevZones);
             this.moveCard(card, 'resource');
             card.exhausted = false;
+        });
+    }
+
+    attachOpponentOwnedUpgrades(opponentOwnedUpgrades = []) {
+        opponentOwnedUpgrades.forEach((upgrade) => {
+            const upgradeCard = this.findCardByName(upgrade.card, 'any', 'opponent');
+            const attachTo = this.findCardByName(upgrade.attachedTo);
+            upgradeCard.attachTo(attachTo);
         });
     }
 
