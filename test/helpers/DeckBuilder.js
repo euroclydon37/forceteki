@@ -113,7 +113,7 @@ class DeckBuilder {
         // Collect all the cards together
         allCards = allCards.concat(inPlayCards);
 
-        return [this.buildDeck(allCards), namedCards, resources];
+        return [this.buildDeck(allCards), namedCards, resources, playerCards.deck];
     }
 
     getAllNamedCards(playerObject) {

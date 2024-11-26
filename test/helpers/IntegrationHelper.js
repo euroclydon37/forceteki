@@ -846,8 +846,8 @@ global.integration = function (definitions) {
                 const player2OwnedCards = deckBuilder.getOwnedCards(2, options.player2, options.player1);
 
                 // pass decklists to players. they are initialized into real card objects in the startGame() call
-                const [deck1, namedCards1, resources1] = deckBuilder.customDeck(1, player1OwnedCards, options.phase);
-                const [deck2, namedCards2, resources2] = deckBuilder.customDeck(2, player2OwnedCards, options.phase);
+                const [deck1, namedCards1, resources1, drawDeck1] = deckBuilder.customDeck(1, player1OwnedCards, options.phase);
+                const [deck2, namedCards2, resources2, drawDeck2] = deckBuilder.customDeck(2, player2OwnedCards, options.phase);
 
                 this.player1.selectDeck(deck1);
                 this.player2.selectDeck(deck2);
@@ -907,8 +907,8 @@ global.integration = function (definitions) {
                 this.player2.setBaseStatus(options.player2.base);
 
                 // Deck
-                this.player1.setDeck(options.player1.deck, ['outsideTheGame']);
-                this.player2.setDeck(options.player2.deck, ['outsideTheGame']);
+                this.player1.setDeck(drawDeck1, ['outsideTheGame']);
+                this.player2.setDeck(drawDeck2, ['outsideTheGame']);
 
                 // add named cards to this for easy reference (allows us to do "this.<cardName>")
                 // note that if cards map to the same property name (i.e., same title), then they won't be added
