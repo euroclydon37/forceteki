@@ -11,12 +11,10 @@ describe('Take control of a card', function() {
                     },
                     player2: {
                         groundArena: ['wampa', 'atat-suppressor'],
-                        hand: ['strike-true', 'vanquish'],
+                        hand: ['strike-true', 'vanquish', 'take-captive'],
                         leader: 'finn#this-is-a-rescue'
                     }
                 });
-
-                const { context } = contextRef;
             });
 
             it('it should keep all state', function () {
@@ -95,6 +93,49 @@ describe('Take control of a card', function() {
                 context.player1.clickCard(context.waylay);
                 context.player1.clickCard(context.lomPyke);
                 expect(context.lomPyke).toBeInZone('hand', context.player2);
+            });
+        });
+
+        describe('When a player takes control of a unit in the arena', function() {
+            beforeEach(function () {
+                contextRef.setupTest({
+                    phase: 'action',
+                    player1: {
+                        hand: ['waylay'],
+                        groundArena: ['battlefield-marine'],
+                        leader: { card: 'emperor-palpatine#galactic-ruler', exhausted: true },
+                    },
+                    player2: {
+                        groundArena: ['wampa', 'atat-suppressor', { card: 'lom-pyke#dealer-in-truths', damage: 1, exhausted: true, upgrades: ['academy-training'] }],
+                        hand: ['strike-true', 'vanquish', 'take-captive'],
+                        leader: 'finn#this-is-a-rescue'
+                    }
+                });
+
+                const { context } = contextRef;
+
+                // Lom Pyke captures Battlefield Marine to confirm that captured units remain captured
+                context.player1.passAction();
+                context.player2.clickCard(context.takeCaptive);
+                context.player2.clickCard(context.lomPyke);
+
+                // flip Palpatine to take control of Lom Pyke
+                context.player1.clickCard(context.emperorPalpatine);
+            });
+
+            it('it should keep captured cards', function () {
+                const { context } = contextRef;
+
+                expect(context.lomPyke.controller).toBe(context.player1Object);
+                expect(context.lomPyke).toHaveExactUpgradeNames(['academy-training']);
+                expect(context.academyTraining.controller).toBe(context.player2Object);
+                expect(context.lomPyke.exhausted).toBeTrue();
+                expect(context.lomPyke.damage).toBe(1);
+
+                // check capture status
+                expect(context.lomPyke.capturedUnits.length).toBe(1);
+                expect(context.lomPyke.capturedUnits[0]).toBe(context.battlefieldMarine);
+                expect(context.battlefieldMarine).toBeCapturedBy(context.lomPyke);
             });
         });
 
