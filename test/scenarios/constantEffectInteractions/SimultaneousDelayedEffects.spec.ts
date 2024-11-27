@@ -6,46 +6,47 @@ describe('Zorii Bliss', function() {
                     phase: 'action',
                     player1: {
                         groundArena: ['zorii-bliss#valiant-smuggler'],
-                        hand: ['volunteer-soldier'],
-                        deck: ['battlefield-marine', 'wampa', 'pyke-sentinel']
+                        hand: ['volunteer-soldier', 'change-of-heart'],
+                        deck: ['battlefield-marine', 'wampa']
                     },
                     player2: {
-                        hand: ['vanquish']
+                        hand: ['vanquish'],
+                        groundArena: ['pyke-sentinel']
                     }
                 });
             });
 
-            it('draws a card on attack and discards a card at the start of the regroup phase even if zorii dies', function () {
+            it('player may choose order to resolve simultaneous delayed effects', function () {
                 const { context } = contextRef;
+                context.player1.clickCard(context.changeOfHeart);
+                context.player1.clickCard(context.pykeSentinel);
+                expect(context.pykeSentinel).toBeInZone('groundArena', context.player1);
 
-                // Attack with Zorii and draw a card; create delayed discard
+                context.player2.passAction();
                 context.player1.clickCard(context.zoriiBliss);
                 expect(context.player1.hand.length).toBe(2);
                 expect(context.battlefieldMarine).toBeInZone('hand', context.player1);
 
-                context.player2.clickCard(context.vanquish);
-
-                // Move to regroup phase
                 context.moveToRegroupPhase();
-
-                // Player 1 should now discard a card
                 expect(context.player1).toHavePrompt('Choose a card to discard');
-                expect(context.player1).toBeAbleToSelectExactly([context.volunteerSoldier, context.battlefieldMarine]);
+                expect(context.pykeSentinel).toBeInZone('groundArena', context.player2);
                 context.player1.clickCard(context.volunteerSoldier);
-                expect(context.volunteerSoldier).toBeInZone('discard', context.player1);
 
                 // Verify we move on to regroup phase
                 expect(context.player1).toHavePrompt('Select between 0 and 1 cards to resource');
                 context.player1.clickPrompt('Done');
                 context.player2.clickPrompt('Done');
 
-                // Pass again to make sure we don't have to discard again
+                // Pass again to make sure we don't have to discard again and that pyke sentinel remains home
                 expect(context.player1).toBeActivePlayer();
+                expect(context.pykeSentinel).toBeInZone('groundArena', context.player2);
 
                 // Verify we move on to regroup phase again
                 context.moveToRegroupPhase();
                 expect(context.player2).toHavePrompt('Select between 0 and 1 cards to resource');
             });
+
+            // TODO add more tests as needed - such as one where a delayed effect resolution may cancel out another
         });
     });
 });

@@ -2,11 +2,14 @@ import AbilityHelper from '../AbilityHelper';
 import { AbilityContext } from '../core/ability/AbilityContext';
 import { IAbilityLimit } from '../core/ability/AbilityLimit';
 import { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
-import { Duration, EffectName, EventName, PhaseName } from '../core/Constants';
+import { Duration, EffectName, EventName, GameStateChangeRequired, PhaseName, WildcardZoneName } from '../core/Constants';
 import { GameEvent } from '../core/event/GameEvent';
 import { GameSystem, IGameSystemProperties } from '../core/gameSystem/GameSystem';
 import { OngoingEffectBuilder } from '../core/ongoingEffect/OngoingEffectBuilder';
 import { WhenType } from '../Interfaces';
+import * as Contract from '../core/utils/Contract';
+import { OngoingEffectSource } from '../core/ongoingEffect/OngoingEffectSource';
+import { last } from 'underscore';
 
 export interface IDelayedEffectSystemProperties extends IGameSystemProperties {
     when: WhenType;
@@ -45,7 +48,17 @@ export class DelayedEffectSystem<TContext extends AbilityContext = AbilityContex
 
         const renamedProperties = Object.assign(otherProperties, { ongoingEffect: delayedEffect });
 
-        event.context.source[duration](() => renamedProperties);
+        // If target is set, this targeting a card; otherwise, it is targeting a player
+        const delayedEffectTarget = event.context.target || event.context.source;
+
+        // Add more Durations as we implement
+        switch (duration) {
+            case Duration.UntilEndOfRound:
+                delayedEffectTarget.untilEndOfRound(() => renamedProperties);
+                break;
+            default:
+                Contract.fail('Invalid Duration for DelayedEffect');
+        }
     }
 
     public override generatePropertiesFromContext(context: TContext, additionalProperties = {}) {

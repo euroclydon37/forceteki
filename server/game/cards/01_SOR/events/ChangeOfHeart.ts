@@ -19,19 +19,29 @@ export default class ChangeOfHeart extends EventCard {
                     AbilityHelper.immediateEffects.takeControlOfUnit((context) => ({
                         newController: context.source.controller
                     })),
-                    AbilityHelper.immediateEffects.cardLastingEffect((context) => ({
+                    AbilityHelper.immediateEffects.delayedEffect((context) => ({
+                        when: {
+                            onPhaseStarted: (context) => context.phase === PhaseName.Regroup
+                        },
                         duration: Duration.UntilEndOfRound,
-                        target: context.target,
-                        effect: AbilityHelper.ongoingEffects.delayedEffect({
-                            title: 'Return this to its owners control',
-                            when: {
-                                onPhaseStarted: (context) => context.phase === PhaseName.Regroup
-                            },
-                            immediateEffect: AbilityHelper.immediateEffects.takeControlOfUnit({
-                                newController: context.target.owner
-                            })
+                        immediateEffect: AbilityHelper.immediateEffects.takeControlOfUnit({
+                            newController: context.target.owner
                         })
                     }))
+                    // TODO remove before final merge
+                    // AbilityHelper.immediateEffects.cardLastingEffect((context) => ({
+                    //     duration: Duration.UntilEndOfRound,
+                    //     target: context.target,
+                    //     effect: AbilityHelper.ongoingEffects.delayedEffect({
+                    //         title: 'Return this to its owners control',
+                    //         when: {
+                    //             onPhaseStarted: (context) => context.phase === PhaseName.Regroup
+                    //         },
+                    //         immediateEffect: AbilityHelper.immediateEffects.takeControlOfUnit({
+                    //             newController: context.target.owner
+                    //         })
+                    //     })
+                    // }))
                 ])
             }
         });

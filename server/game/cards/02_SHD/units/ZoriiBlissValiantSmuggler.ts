@@ -1,6 +1,6 @@
 import AbilityHelper from '../../../AbilityHelper';
 import { NonLeaderUnitCard } from '../../../core/card/NonLeaderUnitCard';
-import { Duration, PhaseName, RelativePlayer } from '../../../core/Constants';
+import { Duration, PhaseName } from '../../../core/Constants';
 
 export default class ZoriiBlissValiantSmuggler extends NonLeaderUnitCard {
     protected override getImplementationId () {
@@ -25,6 +25,7 @@ export default class ZoriiBlissValiantSmuggler extends NonLeaderUnitCard {
                         target: context.source.controller
                     }))
                 })
+                // TODO remove before final merge
                 // AbilityHelper.immediateEffects.playerLastingEffect({
                 //     duration: Duration.UntilEndOfRound,
                 //     targetPlayer: RelativePlayer.Self,
