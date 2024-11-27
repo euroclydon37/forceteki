@@ -13,7 +13,7 @@ import { last } from 'underscore';
 
 export interface IDelayedEffectSystemProperties extends IGameSystemProperties {
     when: WhenType;
-    duration: Duration;
+    duration?: Duration;
     limit?: IAbilityLimit;
     immediateEffect: GameSystem<TriggeredAbilityContext>;
 }
@@ -54,6 +54,7 @@ export class DelayedEffectSystem<TContext extends AbilityContext = AbilityContex
         // Add more Durations as we implement
         switch (duration) {
             case Duration.UntilEndOfRound:
+                // TODO - Is this how we want to implement these? If no duration is provided, what do we set here?
                 delayedEffectTarget.untilEndOfRound(() => renamedProperties);
                 break;
             default:
