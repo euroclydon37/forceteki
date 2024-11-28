@@ -18,7 +18,6 @@ describe('97th Legion Keeping the Peace on Sullust', function() {
                 expect(context._97thLegion.getHp()).toBe(7);
 
                 context.player1.clickCard(context._97thLegion);
-                context.player1.clickCard(context.p2Base);
                 expect(context.p2Base.damage).toBe(7);
 
                 expect(context.player2).toBeActivePlayer();
