@@ -6,8 +6,8 @@ describe('97th Legion Keeping the Peace on Sullust', function() {
                     phase: 'action',
                     player1: {
                         groundArena: ['97th-legion#keeping-the-peace-on-sullust'],
+                        resources: 7
                     },
-                    resources: 7,
                 });
             });
 
