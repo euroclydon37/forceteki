@@ -20,7 +20,7 @@ export interface IAttackLastingEffectProperties<TContext extends AbilityContext 
     effect?: any;
 }
 
-type IAttackLastingEffectPropertiesOrFactory<TContext extends AbilityContext = AbilityContext> = IAttackLastingEffectProperties<TContext> | ((context: TContext, attack: Attack) => IAttackLastingEffectProperties<TContext>);
+type IAttackLastingEffectPropertiesOrFactory<TContext extends AbilityContext = AbilityContext> = IAttackLastingEffectProperties<TContext> | ((context: TContext) => IAttackLastingEffectProperties<TContext>);
 
 export interface IAttackProperties<TContext extends AbilityContext = AbilityContext> extends ICardTargetSystemProperties {
     attacker?: Card;
@@ -221,7 +221,7 @@ export class AttackStepsSystem<TContext extends AbilityContext = AbilityContext>
         }
 
         for (const lastingEffect of lastingEffects) {
-            const lastingEffectProperties = typeof lastingEffect === 'function' ? lastingEffect(context, attack) : lastingEffect;
+            const lastingEffectProperties = typeof lastingEffect === 'function' ? lastingEffect(context) : lastingEffect;
 
             const effectSystem = new CardLastingEffectSystem(Object.assign({}, lastingEffectProperties, {
                 duration: Duration.UntilEndOfAttack,
@@ -232,5 +232,18 @@ export class AttackStepsSystem<TContext extends AbilityContext = AbilityContext>
         }
 
         return true;
+    }
+
+    private attackerHasSaboteur(properties: IAttackProperties, context: TContext) {
+        if (properties.attacker.hasSomeKeyword(KeywordName.Saboteur)) {
+            return true;
+        }
+
+        // check if some "for this attack" effect would grant Saboteur
+        for (const lastingEffectOrFactory of Helpers.asArray(properties.attackerLastingEffects)) {
+            const lastingEffectProperties = typeof lastingEffectOrFactory === 'function' ? lastingEffectOrFactory(context) : lastingEffectOrFactory;
+
+            if (lastingEffectProperties.effect)
+        }
     }
 }
