@@ -1,6 +1,6 @@
 import AbilityHelper from '../../../AbilityHelper';
 import { NonLeaderUnitCard } from '../../../core/card/NonLeaderUnitCard';
-
+import { DamageType } from '../../../core/Constants';
 
 export default class RukhThrawnsAssassin extends NonLeaderUnitCard {
     protected override getImplementationId() {
@@ -15,7 +15,7 @@ export default class RukhThrawnsAssassin extends NonLeaderUnitCard {
             title: 'Defeat unit being attacked',
             when: {
                 onDamageDealt: (event, context) =>
-                    event.isCombatDamage &&
+                    event.type === DamageType.Combat &&
                     event.damageSource.attack.attacker === context.source &&
                     event.damageSource.damageDealtBy === context.source &&
                     event.damageSource.attack.target?.isNonLeaderUnit()

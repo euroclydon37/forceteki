@@ -1,6 +1,5 @@
 import { AbilityContext } from '../core/ability/AbilityContext';
-import { PlayCardContext, PlayCardAction } from '../core/ability/PlayCardAction';
-import { Card } from '../core/card/Card';
+import { PlayCardContext, PlayCardAction, IPlayCardActionProperties } from '../core/ability/PlayCardAction';
 import { UpgradeCard } from '../core/card/UpgradeCard';
 import { AbilityRestriction, EventName, PlayType } from '../core/Constants';
 import { GameEvent } from '../core/event/GameEvent';
@@ -9,33 +8,36 @@ import { attachUpgrade } from '../gameSystems/GameSystemLibrary';
 
 export class PlayUpgradeAction extends PlayCardAction {
     // we pass in a targetResolver holding the attachUpgrade system so that the action will be blocked if there are no valid targets
-    public constructor(card: Card, playType: PlayType = PlayType.PlayFromHand) {
-        super(card, 'Play this upgrade', playType, [], { immediateEffect: attachUpgrade<AbilityContext<UpgradeCard>>((context) => ({ upgrade: context.source })) });
+    public constructor(properties: IPlayCardActionProperties) {
+        super({ ...properties, title: 'Play this upgrade', targetResolver: { immediateEffect: attachUpgrade<AbilityContext<UpgradeCard>>((context) => ({ upgrade: context.source })) } });
     }
 
     public override executeHandler(context: PlayCardContext) {
         Contract.assertTrue(context.source.isUpgrade());
 
-        const cardPlayedEvent = new GameEvent(EventName.OnCardPlayed, {
+        const cardPlayedEvent = new GameEvent(EventName.OnCardPlayed, context, {
             player: context.player,
             card: context.source,
-            context: context,
-            originalLocation: context.source.location,
+            originalZone: context.source.zoneName,
             originallyOnTopOfDeck:
                 context.player && context.player.drawDeck && context.player.drawDeck[0] === context.source,
             onPlayCardSource: context.onPlayCardSource,
             playType: context.playType
         });
         const events = [context.game.actions
-            .attachUpgrade({ upgrade: context.source, takeControl: context.source.controller !== context.player })
-            .generateEvent(context.target, context),
+            .attachUpgrade({
+                upgrade: context.source,
+                takeControl: context.source.controller !== context.player,
+                target: context.target
+            })
+            .generateEvent(context),
         cardPlayedEvent];
 
         if (context.playType === PlayType.Smuggle) {
             events.push(this.generateSmuggleEvent(context));
         }
 
-        context.game.openEventWindow(events, this.resolveTriggersAfter);
+        context.game.openEventWindow(events, this.triggerHandlingMode);
     }
 
     public override meetsRequirements(context = this.createContext(), ignoredRequirements: string[] = []): string {
@@ -45,7 +47,7 @@ export class PlayUpgradeAction extends PlayCardAction {
         ) {
             return 'restriction';
         }
-        return super.meetsRequirements(context);
+        return super.meetsRequirements(context, ignoredRequirements);
     }
 
     public override displayMessage(context: AbilityContext) {

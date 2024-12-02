@@ -2,11 +2,13 @@ import Player from '../Player';
 import { WithCost } from './propertyMixins/Cost';
 import { PlayUnitAction } from '../../actions/PlayUnitAction';
 import * as Contract from '../utils/Contract';
-import { CardType, KeywordName, Location, PlayType } from '../Constants';
+import { CardType, KeywordName, ZoneName, PlayType } from '../Constants';
 import { WithUnitProperties } from './propertyMixins/UnitProperties';
 import { InPlayCard } from './baseClasses/InPlayCard';
 import { WithStandardAbilitySetup } from './propertyMixins/StandardAbilitySetup';
 import PlayerOrCardAbility from '../ability/PlayerOrCardAbility';
+import { TokenOrPlayableCard } from './CardTypes';
+import { CaptureZone } from '../zone/CaptureZone';
 
 const NonLeaderUnitCardParent = WithUnitProperties(WithCost(WithStandardAbilitySetup(InPlayCard)));
 
@@ -17,7 +19,7 @@ export class NonLeaderUnitCard extends NonLeaderUnitCardParent {
         // superclasses check that we are a unit, check here that we are a non-leader unit
         Contract.assertFalse(this.printedType === CardType.Leader);
 
-        this.defaultActions.push(new PlayUnitAction(this));
+        this.defaultActions.push(new PlayUnitAction({ card: this }));
     }
 
     public override isNonLeaderUnit(): this is NonLeaderUnitCard {
@@ -27,29 +29,35 @@ export class NonLeaderUnitCard extends NonLeaderUnitCardParent {
     public override getActions(): PlayerOrCardAbility[] {
         const actions = super.getActions();
 
-        if (this.location === Location.Resource && this.hasSomeKeyword(KeywordName.Smuggle)) {
-            actions.push(new PlayUnitAction(this, PlayType.Smuggle));
+        if (this.zoneName === ZoneName.Resource && this.hasSomeKeyword(KeywordName.Smuggle)) {
+            actions.push(new PlayUnitAction({ card: this, playType: PlayType.Smuggle }));
         }
         return actions;
     }
 
-    protected override initializeForCurrentLocation(prevLocation: Location): void {
-        super.initializeForCurrentLocation(prevLocation);
+    public override isTokenOrPlayable(): this is TokenOrPlayableCard {
+        return true;
+    }
 
-        switch (this.location) {
-            case Location.GroundArena:
-            case Location.SpaceArena:
+    protected override initializeForCurrentZone(prevZone?: ZoneName): void {
+        super.initializeForCurrentZone(prevZone);
+
+        switch (this.zoneName) {
+            case ZoneName.GroundArena:
+            case ZoneName.SpaceArena:
                 this.setActiveAttackEnabled(true);
                 this.setDamageEnabled(true);
                 this.setExhaustEnabled(true);
                 this.setUpgradesEnabled(true);
+                this.setCaptureZoneEnabled(true);
                 break;
 
-            case Location.Resource:
+            case ZoneName.Resource:
                 this.setActiveAttackEnabled(false);
                 this.setDamageEnabled(false);
                 this.setExhaustEnabled(true);
                 this.setUpgradesEnabled(false);
+                this.setCaptureZoneEnabled(false);
                 break;
 
             default:
@@ -57,6 +65,7 @@ export class NonLeaderUnitCard extends NonLeaderUnitCardParent {
                 this.setDamageEnabled(false);
                 this.setExhaustEnabled(false);
                 this.setUpgradesEnabled(false);
+                this.setCaptureZoneEnabled(false);
                 break;
         }
     }

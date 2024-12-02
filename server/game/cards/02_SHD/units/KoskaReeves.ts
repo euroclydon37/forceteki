@@ -1,6 +1,6 @@
 import AbilityHelper from '../../../AbilityHelper';
 import { NonLeaderUnitCard } from '../../../core/card/NonLeaderUnitCard';
-import { Location, WildcardCardType } from '../../../core/Constants';
+import { ZoneName } from '../../../core/Constants';
 
 export default class KoskaReeves extends NonLeaderUnitCard {
     protected override getImplementationId () {
@@ -13,9 +13,9 @@ export default class KoskaReeves extends NonLeaderUnitCard {
     public override setupCardAbilities () {
         this.addOnAttackAbility({
             title: 'Deal 2 damage to a ground unit if Koska Reeves is upgraded',
+            optional: true,
             targetResolver: {
-                optional: true,
-                locationFilter: Location.GroundArena,
+                zoneFilter: ZoneName.GroundArena,
                 immediateEffect: AbilityHelper.immediateEffects.conditional({
                     condition: (context) => context.source.isUpgraded(),
                     onTrue: AbilityHelper.immediateEffects.damage({ amount: 2 }),

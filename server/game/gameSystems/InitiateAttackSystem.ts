@@ -1,17 +1,19 @@
 import type { Card } from '../core/card/Card';
 import AbilityResolver from '../core/gameSteps/AbilityResolver';
-import type { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
-import { CardTargetSystem, ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
+import { CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
 import { UnitCard } from '../core/card/CardTypes';
 import { InitiateAttackAction } from '../actions/InitiateAttackAction';
 import { AbilityContext } from '../core/ability/AbilityContext';
 import * as Contract from '../core/utils/Contract';
 import { IAttackProperties } from './AttackStepsSystem';
 import * as GameSystemLibrary from './GameSystemLibrary';
+import { EventName, MetaEventName } from '../core/Constants';
 
 export interface IInitiateAttackProperties<TContext extends AbilityContext = AbilityContext> extends IAttackProperties {
     ignoredRequirements?: string[];
     attackerCondition?: (card: Card, context: TContext) => boolean;
+    isAmbush?: boolean;
+    allowExhaustedAttacker?: boolean;
 
     /** By default, the system will inherit the `optional` property from the activating ability. Use this to override the behavior. */
     optional?: boolean;
@@ -24,9 +26,12 @@ export interface IInitiateAttackProperties<TContext extends AbilityContext = Abi
  */
 export class InitiateAttackSystem<TContext extends AbilityContext = AbilityContext> extends CardTargetSystem<TContext, IInitiateAttackProperties<TContext>> {
     public override readonly name = 'initiateUnitAttack';
+    protected override readonly eventName = MetaEventName.InitiateAttack;
     protected override readonly defaultProperties: IInitiateAttackProperties = {
         ignoredRequirements: [],
-        attackerCondition: () => true
+        attackerCondition: () => true,
+        isAmbush: false,
+        allowExhaustedAttacker: false
     };
 
     public eventHandler(event, additionalProperties): void {
@@ -47,7 +52,7 @@ export class InitiateAttackSystem<TContext extends AbilityContext = AbilityConte
         super.addPropertiesToEvent(event, attacker, context, additionalProperties);
 
         event.attackAbility = this.generateAttackAbilityNoTarget(attacker, properties);
-        event.optional = properties.optional == null ? context.ability.optional : properties.optional;
+        event.optional = properties.optional ?? context.ability.optional;
     }
 
     public override canAffect(card: Card, context: TContext, additionalProperties = {}): boolean {
@@ -67,7 +72,6 @@ export class InitiateAttackSystem<TContext extends AbilityContext = AbilityConte
           attackAbility.hasSomeLegalTarget(newContext);
     }
 
-    // TODO THIS PR: set this as "printedAbility: false"
     /**
      * Generate an attack ability for the specified card.
      * Uses the passed properties but strips out the `target` property to avoid overriding it in the attack.

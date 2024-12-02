@@ -1,14 +1,13 @@
 import { AbilityContext } from '../core/ability/AbilityContext';
 import { Card } from '../core/card/Card';
-import { Duration, EffectName, EventName, Location, WildcardLocation } from '../core/Constants';
+import { Duration, EffectName, EventName, ZoneName, WildcardZoneName } from '../core/Constants';
 import { CardTargetSystem, ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
 import type { ILastingEffectPropertiesBase } from '../core/gameSystem/LastingEffectPropertiesBase';
 
 export interface ICardLastingEffectProperties extends Omit<ILastingEffectPropertiesBase, 'target'>, ICardTargetSystemProperties {
-    targetLocationFilter?: Location | Location[];
+    targetZoneFilter?: ZoneName | ZoneName[];
 }
 
-// TODO: how is this related to LastingEffectSystem?
 /**
  * For a definition, see SWU 7.7.3 'Lasting Effects': "A lasting effect is a part of an ability that affects the game for a specified duration of time.
  * Most lasting effects include the phrase 'for this phase' or 'for this attack.'"
@@ -30,9 +29,9 @@ export class CardLastingEffectSystem<TContext extends AbilityContext = AbilityCo
         }
 
         const lastingEffectRestrictions = event.card.getOngoingEffectValues(EffectName.CannotApplyLastingEffects);
-        const { effect: effect, ...otherProperties } = properties;
-        const effectProperties = Object.assign({ matchTarget: event.card, locationFilter: WildcardLocation.Any }, otherProperties);
-        let effects = properties.effect.map((factory) =>
+        const { effect, ...otherProperties } = properties;
+        const effectProperties = Object.assign({ matchTarget: event.card, zoneFilter: WildcardZoneName.Any, isLastingEffect: true }, otherProperties);
+        let effects = effect.map((factory) =>
             factory(event.context.game, event.context.source, effectProperties)
         );
         effects = effects.filter(
@@ -50,12 +49,14 @@ export class CardLastingEffectSystem<TContext extends AbilityContext = AbilityCo
         if (!Array.isArray(properties.effect)) {
             properties.effect = [properties.effect];
         }
+
         return properties;
     }
 
     public override canAffect(card: Card, context: TContext, additionalProperties = {}): boolean {
         const properties = this.generatePropertiesFromContext(context, additionalProperties);
-        properties.effect = properties.effect.map((factory) => factory(context.game, context.source, properties));
+        properties.effect = properties.effect.map((factory) => factory(context.game, context.source, { ...properties, isLastingEffect: true }));
+
         const lastingEffectRestrictions = card.getOngoingEffectValues(EffectName.CannotApplyLastingEffects);
         return (
             super.canAffect(card, context) &&

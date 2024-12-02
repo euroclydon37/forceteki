@@ -25,18 +25,20 @@ interface SwuTestContext {
     p2Base: BaseCard;
     p2Leader: LeaderCard;
 
-    allPlayersInInitiativeOrder(): PlayerInteractionWrapper[];
-    startGame();
-    keepStartingHand();
-    skipSetupPhase();
-    selectInitiativePlayer(player: PlayerInteractionWrapper);
-    moveToNextActionPhase();
     advancePhases(endphase);
-    getPromptedPlayer(title: string);
-    nextPhase();
-    getChatLogs(numbBack = 1, inOrder = false);
+    allPlayersInInitiativeOrder(): PlayerInteractionWrapper[];
+    getPlayableCardTitles();
     getChatLog(numbBack = 0);
+    getChatLogs(numbBack = 1, inOrder = false);
+    getPromptedPlayer(title: string);
+    keepStartingHand();
+    moveToNextActionPhase();
+    moveToRegroupPhase();
+    nextPhase();
+    selectInitiativePlayer(player: PlayerInteractionWrapper);
     setDamage(card: CardWithDamageProperty, amount: number);
+    skipSetupPhase();
+    startGame();
 
     // To account for any dynamically added cards or objects, we have a free-form accessor.
     [field: string]: any;
@@ -81,9 +83,11 @@ declare namespace jasmine {
         toBeActivePlayer<T extends PlayerInteractionWrapper>(this: Matchers<T>): boolean;
         toHaveInitiative<T extends PlayerInteractionWrapper>(this: Matchers<T>): boolean;
         toHavePassAbilityPrompt<T extends PlayerInteractionWrapper>(this: Matchers<T>, abilityText: any): boolean;
+        toHavePassSingleTargetPrompt<T extends PlayerInteractionWrapper>(this: Matchers<T>, abilityText: any, target: any): boolean;
         toBeInBottomOfDeck(player: PlayerInteractionWrapper, numCards: number): boolean;
         toAllBeInBottomOfDeck(player: PlayerInteractionWrapper, numCards: number): boolean;
-        toBeInLocation(location, player?: PlayerInteractionWrapper): boolean;
+        toBeInZone(zone, player?: PlayerInteractionWrapper): boolean;
+        toBeCapturedBy(card: any): boolean;
         toHaveExactUpgradeNames(upgradeNames: any[]): boolean;
         toHaveExactPromptButtons<T extends PlayerInteractionWrapper>(this: Matchers<T>, buttons: any[]): boolean;
         toHaveExactDropdownListOptions<T extends PlayerInteractionWrapper>(this: Matchers<T>, expectedOptions: any[]): boolean;

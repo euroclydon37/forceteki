@@ -1,5 +1,5 @@
 import type { AbilityContext } from '../ability/AbilityContext';
-import { EventName } from '../Constants';
+import { DamageType, EventName } from '../Constants';
 import type { Attack } from './Attack';
 import { BaseStepWithPipeline } from '../gameSteps/BaseStepWithPipeline';
 import { SimpleStep } from '../gameSteps/SimpleStep';
@@ -8,6 +8,8 @@ import * as EnumHelpers from '../utils/EnumHelpers';
 import AbilityHelper from '../../AbilityHelper';
 import { GameEvent } from '../event/GameEvent';
 import { Card } from '../card/Card';
+import { TriggerHandlingMode } from '../event/EventWindow';
+import { DamageSystem } from '../../gameSystems/DamageSystem';
 
 export class AttackFlow extends BaseStepWithPipeline {
     public constructor(
@@ -35,14 +37,15 @@ export class AttackFlow extends BaseStepWithPipeline {
         this.attack.attacker.setActiveAttack(this.attack);
         this.attack.target.setActiveAttack(this.attack);
 
-        this.game.createEventAndOpenWindow(EventName.OnAttackDeclared, { attack: this.attack }, true);
+        this.game.createEventAndOpenWindow(EventName.OnAttackDeclared, this.context, { attack: this.attack }, TriggerHandlingMode.ResolvesTriggers);
     }
 
     private openDealDamageWindow(): void {
         this.context.game.createEventAndOpenWindow(
             EventName.OnAttackDamageResolved,
+            this.context,
             { attack: this.attack },
-            true,
+            TriggerHandlingMode.ResolvesTriggers,
             () => this.dealDamage()
         );
     }
@@ -66,7 +69,11 @@ export class AttackFlow extends BaseStepWithPipeline {
 
         const attackerDealsDamageBeforeDefender = this.attack.attackerDealsDamageBeforeDefender();
         if (overwhelmDamageOnly) {
-            this.buildOverwhelmDamageSystem(this.attack.getAttackerTotalPower()).resolve(this.attack.target.controller.base, this.context);
+            new DamageSystem({
+                type: DamageType.Overwhelm,
+                amount: this.attack.getAttackerTotalPower(),
+                sourceAttack: this.attack
+            }).resolve(this.attack.target.controller.base, this.context);
         } else if (attackerDealsDamageBeforeDefender) {
             this.context.game.openEventWindow(this.createAttackerDamageEvent());
             this.context.game.queueSimpleStep(() => {
@@ -87,10 +94,11 @@ export class AttackFlow extends BaseStepWithPipeline {
     private createAttackerDamageEvent(): GameEvent {
         // event for damage dealt to target by attacker
         const attackerDamageEvent = AbilityHelper.immediateEffects.damage({
+            type: DamageType.Combat,
             amount: this.attack.getAttackerTotalPower(),
-            isCombatDamage: true,
             sourceAttack: this.attack,
-        }).generateEvent(this.attack.target, this.context);
+            target: this.attack.target
+        }).generateEvent(this.context);
 
         if (this.attack.hasOverwhelm()) {
             attackerDamageEvent.setContingentEventsGenerator((event) => {
@@ -100,34 +108,33 @@ export class AttackFlow extends BaseStepWithPipeline {
                     return [];
                 }
 
-                const overwhelmSystem = this.buildOverwhelmDamageSystem(event.damage - event.card.remainingHp);
-                return [overwhelmSystem.generateEvent(event.card.controller.base, this.context)];
+                const overwhelmSystem = new DamageSystem({
+                    type: DamageType.Overwhelm,
+                    contingentSourceEvent: attackerDamageEvent,
+                    sourceAttack: this.attack,
+                    target: event.card.controller.base
+                });
+
+                return [overwhelmSystem.generateEvent(this.context)];
             });
         }
 
         return attackerDamageEvent;
     }
 
-    private buildOverwhelmDamageSystem(amount: number) {
-        return AbilityHelper.immediateEffects.damage({
-            amount,
-            isOverwhelmDamage: true,
-            sourceAttack: this.attack
-        });
-    }
-
     private createDefenderDamageEvent(): GameEvent {
         return AbilityHelper.immediateEffects.damage({
+            type: DamageType.Combat,
             amount: this.attack.getTargetTotalPower(),
-            isCombatDamage: true,
-            sourceAttack: this.attack
-        }).generateEvent(this.attack.attacker, this.context);
+            sourceAttack: this.attack,
+            target: this.attack.attacker
+        }).generateEvent(this.context);
     }
 
     private completeAttack() {
-        this.game.createEventAndOpenWindow(EventName.OnAttackCompleted, {
+        this.game.createEventAndOpenWindow(EventName.OnAttackCompleted, this.context, {
             attack: this.attack,
-        }, true);
+        }, TriggerHandlingMode.ResolvesTriggers);
     }
 
     private cleanUpAttack() {
@@ -137,7 +144,7 @@ export class AttackFlow extends BaseStepWithPipeline {
     }
 
     private checkUnsetActiveAttack(card: CardWithDamageProperty) {
-        if (EnumHelpers.isArena(card.location) || card.isBase()) {
+        if (EnumHelpers.isArena(card.zoneName) || card.isBase()) {
             card.unsetActiveAttack();
         }
     }

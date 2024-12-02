@@ -1,38 +1,57 @@
 // allow block comments without spaces so we can have compact jsdoc descriptions in this file
 /* eslint @stylistic/lines-around-comment: off */
 
-export enum Location {
+export enum ZoneName {
     Base = 'base',
+    Capture = 'capture',
     Deck = 'deck',
     Discard = 'discard',
-    GroundArena = 'ground arena',
+    GroundArena = 'groundArena',
     Hand = 'hand',
-    OutsideTheGame = 'outside the game',
-    RemovedFromGame = 'removed from game',
+    OutsideTheGame = 'outsideTheGame',
     Resource = 'resource',
-    SpaceArena = 'space arena',
+    SpaceArena = 'spaceArena',
 }
 
-export enum WildcardLocation {
+export enum DeckZoneDestination {
+    DeckTop = 'deckTop',
+    DeckBottom = 'deckBottom'
+}
+
+/**
+ * Helper type used when a passed ZoneName represents a move destination.
+ * Used to account for moving to top or bottom of deck.
+ */
+export type MoveZoneDestination = Exclude<ZoneName, ZoneName.Deck | ZoneName.Capture> | DeckZoneDestination.DeckBottom | DeckZoneDestination.DeckTop;
+
+export enum WildcardZoneName {
     Any = 'any',
-    AnyArena = 'any arena',
+    AnyArena = 'anyArena',
 
-    /** Any location that is a valid attack target - an arena or base zone */
-    AnyAttackable = 'any attackable'
+    /** Any zone that is a valid attack target - an arena or base zone */
+    AnyAttackable = 'anyAttackable'
 }
 
-export type LocationFilter = Location | WildcardLocation;
+export type ZoneFilter = ZoneName | WildcardZoneName;
 
-export type Arena = Location.GroundArena | Location.SpaceArena;
+export type Arena = ZoneName.GroundArena | ZoneName.SpaceArena;
 
 export enum PlayType {
     PlayFromHand = 'playFromHand',
-    Smuggle = 'smuggle'
+    Smuggle = 'smuggle',
+    PlayFromOutOfPlay = 'playFromOutOfPlay',
 }
 
 export enum StatType {
     Hp = 'hp',
     Power = 'power'
+}
+
+export enum DamageType {
+    Combat = 'combat',
+    Ability = 'ability',
+    Excess = 'excess',
+    Overwhelm = 'overwhelm'
 }
 
 export enum EffectName {
@@ -53,6 +72,7 @@ export enum EffectName {
     DoesNotReady = 'doesNotReady',
     DealsDamageBeforeDefender = 'dealsDamageBeforeDefender',
     EntersPlayForOpponent = 'entersPlayForOpponent',
+    EntersPlayReady = 'entersPlayReady',
     GainAbility = 'gainAbility',
     GainKeyword = 'gainKeyword',
     IncreaseLimitOnAbilities = 'increaseLimitOnAbilities',
@@ -73,7 +93,6 @@ export enum EffectName {
     // "cannot" effects
     CannotApplyLastingEffects = 'cannotApplyLastingEffects',
     CannotAttackBase = 'cannotAttackBase',
-    CannotBeAttacked = 'cannotBeAttacked',
 }
 
 export enum Duration {
@@ -94,9 +113,14 @@ export enum Stage {
 
 export enum RelativePlayer {
     Self = 'self',
-    Opponent = 'opponent',
+    Opponent = 'opponent'
+}
+
+export enum WildcardRelativePlayer {
     Any = 'any'
 }
+
+export type RelativePlayerFilter = RelativePlayer | WildcardRelativePlayer;
 
 export enum TargetMode {
     AutoSingle = 'autoSingle',
@@ -154,8 +178,8 @@ export enum TokenName {
     Experience = 'experience'
 }
 
+// TODO: start removing these if they aren't used
 export enum EventName {
-    MetaAttackSteps = 'metaAttackSteps',
     OnAbilityResolved = 'onAbilityResolved',
     OnAbilityResolverInitiated = 'onAbilityResolverInitiated',
     OnAddTokenToCard = 'onAddTokenToCard',
@@ -165,42 +189,69 @@ export enum EventName {
     OnBeginRound = 'onBeginRound',
     OnCardAbilityInitiated = 'onCardAbilityInitiated',
     OnCardAbilityTriggered = 'onCardAbilityTriggered',
+    OnCardCaptured = 'onCardCaptured',
     OnCardDefeated = 'onCardDefeated',
     OnCardExhausted = 'onCardExhausted',
     OnCardLeavesPlay = 'onCardLeavesPlay',
     OnCardMoved = 'onCardMoved',
     OnCardPlayed = 'onCardPlayed',
     OnCardReadied = 'onCardReadied',
+    OnCardResourced = 'onCardResourced',
     OnCardReturnedToHand = 'onCardReturnedToHand',
     OnCardRevealed = 'onCardRevealed',
-    OnCardsDiscarded = 'onCardsDiscarded',
+    OnCardDiscarded = 'onCardDiscarded',
     OnCardsDiscardedFromHand = 'onCardsDiscardedFromHand',
     OnCardsDrawn = 'onCardsDrawn',
+    OnClaimInitiative = 'onClaimInitiative',
     OnDamageDealt = 'onDamageDealt',
     OnDamageRemoved = 'onDamageRemoved',
     OnDeckSearch = 'onDeckSearch',
     OnDeckShuffled = 'onDeckShuffled',
+    OnDiscardFromDeck = 'onDiscardFromDeck',
     OnEffectApplied = 'onEffectApplied',
     onExhaustResources = 'onExhaustResources',
+    OnEntireHandDiscarded = 'onEntireHandDiscarded',
     OnInitiateAbilityEffects = 'onInitiateAbilityEffects',
     OnLeaderDeployed = 'onLeaderDeployed',
     OnLookAtCard = 'onLookAtCard',
+    OnLookMoveDeckCardsTopOrBottom = 'onLookMoveDeckCardsTopOrBottom',
     OnPassActionPhasePriority = 'onPassActionPhasePriority',
     OnPhaseCreated = 'onPhaseCreated',
     OnPhaseEnded = 'onPhaseEnded',
     OnPhaseEndedCleanup = 'onPhaseEndedCleanup',
     OnPhaseStarted = 'onPhaseStarted',
     OnReadyResources = 'onReadyResources',
+    OnRescue = 'onRescue',
     OnRegroupPhaseReadyCards = 'onRegroupPhaseReadyCards',
     OnRoundEnded = 'onRoundEnded',
     OnRoundEndedCleanup = 'onRoundEndedCleanup',
     OnStatusTokenDiscarded = 'onStatusTokenDiscarded',
     OnStatusTokenGained = 'onStatusTokenGained',
     OnStatusTokenMoved = 'onStatusTokenMoved',
-    OnClaimInitiative = 'onClaimInitiative',
+    OnTakeControl = 'onTakeControl',
     OnUnitEntersPlay = 'onUnitEntersPlay',
     OnUpgradeAttached = 'onUpgradeAttached',
-    Unnamed = 'unnamedEvent',
+}
+
+/**
+ * Meta-events are infrastructure events that exist to facilitate game events.
+ * Abilities cannot trigger on them because they don't exist in the SWU rules, they're just
+ * to help us execute the game rules correctly.
+ */
+export enum MetaEventName {
+    AttackSteps = 'attackSteps',
+    Conditional = 'conditional',
+    ChooseModalEffects = 'ChooseModalEffects',
+    DistributeDamage = 'distributeDamage',
+    DistributeHealing = 'distributeHealing',
+    ExecuteHandler = 'executeHandler',
+    InitiateAttack = 'initiateAttack',
+    NoAction = 'noAction',
+    PlayCard = 'playCard',
+    ReplacementEffect = 'replacementEffect',
+    SelectCard = 'selectCard',
+    Sequential = 'sequential',
+    Simultaneous = 'simultaneous',
 }
 
 export enum AbilityType {
@@ -222,8 +273,6 @@ export enum Aspect {
 
 export enum KeywordName {
     Ambush = 'ambush',
-
-    /** @deprecated Not implemented yet */
     Bounty = 'bounty',
     Grit = 'grit',
     Overwhelm = 'overwhelm',
@@ -259,6 +308,7 @@ export enum Trait {
     Force = 'force',
     Fringe = 'fringe',
     Gambit = 'gambit',
+    Gungan = 'gungan',
     Hutt = 'hutt',
     Imperial = 'imperial',
     Innate = 'innate',
@@ -266,12 +316,15 @@ export enum Trait {
     Item = 'item',
     Jawa = 'jawa',
     Jedi = 'jedi',
+    Kaminoan = 'kaminoan',
     Law = 'law',
     Learned = 'learned',
     Lightsaber = 'lightsaber',
     Mandalorian = 'mandalorian',
     Modification = 'modification',
+    Naboo = 'naboo',
     NewRepublic = 'new republic',
+    Night = 'night',
     Official = 'official',
     Plan = 'plan',
     Rebel = 'rebel',
@@ -324,7 +377,7 @@ export enum AbilityRestriction {
     EnterPlay = 'enterPlay',
 
     /** Restricts a game object from being targetable by abilities */
-    Target = 'target',  // TODO: rename to AbilityTarget
+    AbilityTarget = 'abilityTarget',
 
     BeHealed = 'beHealed',
     Exhaust = 'exhaust',
@@ -340,6 +393,7 @@ export enum StateWatcherName {
     CardsPlayedThisPhase = 'cardsPlayedThisPhase',
     UnitsDefeatedThisPhase = 'unitsDefeatedThisPhase',
     CardsEnteredPlayThisPhase = 'cardsEnteredPlayThisPhase',
+    DamageDealtThisPhase = 'damageDealtThisPhase',
 
     // TODO STATE WATCHERS: watcher types needed
     // - unit defeated: Iden, Emperor's Legion, Brutal Traditions, Spark of Hope, Bravado
@@ -348,5 +402,23 @@ export enum StateWatcherName {
     // - entered play: Boba unit
     // - attacked base: Ephant Mon, Rule with Respect
     // - attacked with unit type: Medal Ceremony, Bo-Katan leader, Asajj Ventress
-    // - discarded: Kylo's TIE Silencer?
+    // - discarded: Kylo's TIE Silencer
+}
+
+/** For "canAffect" and target eligibility checks, indicates whether game state must be changed by the effect in order for the check to pass */
+export enum GameStateChangeRequired {
+    /** Game state change is not required */
+    None = 'none',
+
+    /**
+     * Game state change is required but the effect is not required to fully resolve. E.g., if exhausting resources,
+     * would not need to exhaust the full number of requested resources.
+     */
+    MustFullyOrPartiallyResolve = 'mustFullyOrPartiallyResolve',
+
+    /**
+     * Game state change is required and the effect is required to fully resolve. E.g., if exhausting resources,
+     * would be required to exhaust the full number of requested resources.
+     */
+    MustFullyResolve = 'mustFullyResolve',
 }

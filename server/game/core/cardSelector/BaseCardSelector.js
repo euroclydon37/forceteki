@@ -1,6 +1,7 @@
-const { Location, RelativePlayer, WildcardLocation } = require('../Constants');
+const { ZoneName, RelativePlayer, WildcardZoneName, WildcardRelativePlayer } = require('../Constants');
 const Contract = require('../utils/Contract');
 const EnumHelpers = require('../utils/EnumHelpers');
+const Helpers = require('../utils/Helpers');
 
 // TODO: once converted to TS, make this abstract.
 class BaseCardSelector {
@@ -8,8 +9,9 @@ class BaseCardSelector {
         this.cardCondition = properties.cardCondition;
         this.cardTypeFilter = properties.cardTypeFilter;
         this.optional = properties.optional;
-        this.locationFilter = this.buildLocationFilter(properties.locationFilter);
-        this.controller = properties.controller || RelativePlayer.Any;
+        this.zoneFilter = this.buildZoneFilter(properties.zoneFilter);
+        this.capturedByFilter = properties.capturedByFilter;
+        this.controller = properties.controller || WildcardRelativePlayer.Any;
         this.checkTarget = !!properties.checkTarget;
         this.sameDiscardPile = !!properties.sameDiscardPile;
 
@@ -18,12 +20,16 @@ class BaseCardSelector {
         }
     }
 
-    buildLocationFilter(property) {
-        let locationFilter = property || WildcardLocation.AnyAttackable || [];
-        if (!Array.isArray(locationFilter)) {
-            locationFilter = [locationFilter];
+    get hasAnyCardFilter() {
+        return this.cardTypeFilter || this.cardCondition;
+    }
+
+    buildZoneFilter(property) {
+        let zoneFilter = property || WildcardZoneName.AnyAttackable || [];
+        if (!Array.isArray(zoneFilter)) {
+            zoneFilter = [zoneFilter];
         }
-        return locationFilter;
+        return zoneFilter;
     }
 
     findPossibleCards(context) {
@@ -32,7 +38,7 @@ class BaseCardSelector {
             controllerProp = controllerProp(context);
         }
 
-        if (this.locationFilter.includes(WildcardLocation.Any)) {
+        if (this.zoneFilter.includes(WildcardZoneName.Any)) {
             if (controllerProp === RelativePlayer.Self) {
                 return context.game.allCards.filter((card) => card.controller === context.player);
             } else if (controllerProp === RelativePlayer.Opponent) {
@@ -43,33 +49,64 @@ class BaseCardSelector {
 
         let possibleCards = [];
         if (controllerProp !== RelativePlayer.Opponent) {
-            possibleCards = this.locationFilter.reduce(
-                (array, locationFilter) => array.concat(this.getCardsForPlayerLocations(locationFilter, context.player)), possibleCards
+            possibleCards = this.zoneFilter.reduce(
+                (array, zoneFilter) => array.concat(this.getCardsForPlayerZones(zoneFilter, context.player, context.game)), possibleCards
             );
         }
         if (controllerProp !== RelativePlayer.Self && context.player.opponent) {
-            possibleCards = this.locationFilter.reduce(
-                (array, locationFilter) => array.concat(this.getCardsForPlayerLocations(locationFilter, context.player.opponent)), possibleCards
+            possibleCards = this.zoneFilter.reduce(
+                (array, zoneFilter) => array.concat(this.getCardsForPlayerZones(zoneFilter, context.player.opponent, context.game)), possibleCards
             );
         }
+
+        possibleCards = this.filterCaptureZones(possibleCards, context);
+
         return possibleCards;
     }
 
-    getCardsForPlayerLocations(location, player) {
+    filterCaptureZones(possibleCards, context) {
+        // get cards from capture zones, if any
+        const concreteCaptors = Helpers.asArray(
+            typeof this.capturedByFilter === 'function'
+                ? this.capturedByFilter(context)
+                : this.capturedByFilter
+        );
+
+        if (concreteCaptors.length === 0) {
+            return possibleCards;
+        }
+
+        if (!this.zoneFilter.includes(ZoneName.Capture)) {
+            Contract.fail('Cannot use the \'capturedByFilter\' property without specifying \'ZoneName.Capture\' in the zoneFilter');
+        }
+
+        for (const captor of concreteCaptors) {
+            Contract.assertTrue(captor.isUnit(), `Attempting to target capture zone for ${captor.internalName} but it is not a unit`);
+            Contract.assertTrue(captor.isInPlay(), `Attempting to target capture zone for ${captor.internalName} but it is in non-play zone ${captor.zoneName}`);
+        }
+
+        return possibleCards.filter((card) => card.zoneName !== ZoneName.Capture || concreteCaptors.includes(card.getCaptor()));
+    }
+
+    getCardsForPlayerZones(zone, player, game) {
         var cards;
-        switch (location) {
-            case WildcardLocation.Any:
+        switch (zone) {
+            case WildcardZoneName.Any:
                 // TODO: is this ever a case we should have? this would allow targeting deck, discard, etc.
-                throw Error('WildcardLocation.Any is currently not supported for card selectors');
-            case WildcardLocation.AnyArena:
+                throw Error('WildcardZoneName.Any is currently not supported for card selectors');
+            case WildcardZoneName.AnyArena:
                 cards = player.getArenaCards();
                 break;
-            case WildcardLocation.AnyAttackable:
-                cards = player.getArenaCards();
-                cards = cards.concat(player.getCardPile(Location.Base));
+            case WildcardZoneName.AnyAttackable:
+                cards = [].concat(player.getArenaCards());
+                cards = cards.concat(player.baseZone.cards);
+                break;
+            case ZoneName.Capture:
+                cards = game.allArenas.getUnitCards().flatMap((card) => card.capturedUnits);
+                cards = cards.filter((card) => card.owner === player);
                 break;
             default:
-                cards = player.getCardPile(location);
+                cards = player.getCardsInZone(zone);
                 break;
         }
 
@@ -87,7 +124,7 @@ class BaseCardSelector {
         }
 
         if (this.sameDiscardPile && selectedCards.length > 0) {
-            return card.location === selectedCards[0].location && card.owner === selectedCards[0].owner;
+            return card.zoneName === selectedCards[0].zoneName && card.owner === selectedCards[0].owner;
         }
 
         if (this.checkTarget && !card.canBeTargeted(context, selectedCards)) {
@@ -99,10 +136,10 @@ class BaseCardSelector {
         if (controllerProp === RelativePlayer.Opponent && card.controller !== context.player.opponent) {
             return false;
         }
-        if (!EnumHelpers.cardLocationMatches(card.location, this.locationFilter)) {
+        if (!EnumHelpers.cardZoneMatches(card.zoneName, this.zoneFilter) && card.zoneName !== ZoneName.Capture) {
             return false;
         }
-        if (card.location === Location.Hand && card.controller !== choosingPlayer) {
+        if (card.zoneName === ZoneName.Hand && card.controller !== choosingPlayer) {
             return false;
         }
         return EnumHelpers.cardTypeMatches(card.type, this.cardTypeFilter) && this.cardCondition(card, context);

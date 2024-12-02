@@ -1,5 +1,5 @@
 import { Card } from '../card/Card';
-import { Aspect, CardType, CardTypeFilter, Location } from '../Constants';
+import { Aspect, CardType, CardTypeFilter, ZoneName } from '../Constants';
 import * as Contract from './Contract';
 import * as EnumHelpers from './EnumHelpers';
 
@@ -33,6 +33,8 @@ export function countUniqueAspects(cards: Card | Card[]): number {
     return aspects.size;
 }
 
+// TODO: remove this
+/** @deprecated Use `shuffleArray` instead */
 export function shuffle<T>(array: T[]): T[] {
     const shuffleArray = [...array];
     for (let i = shuffleArray.length - 1; i > 0; i--) {
@@ -42,43 +44,43 @@ export function shuffle<T>(array: T[]): T[] {
     return shuffleArray;
 }
 
-export function defaultLegalLocationsForCardTypeFilter(cardTypeFilter: CardTypeFilter) {
+export function defaultLegalZonesForCardTypeFilter(cardTypeFilter: CardTypeFilter) {
     const cardTypes = EnumHelpers.getCardTypesForFilter(cardTypeFilter);
 
-    const locations = new Set<Location>();
+    const zones = new Set<ZoneName>();
 
     cardTypes.forEach((cardType) => {
-        const legalLocations = defaultLegalLocationsForCardType(cardType);
-        legalLocations.forEach((location) => locations.add(location));
+        const legalZones = defaultLegalZonesForCardType(cardType);
+        legalZones.forEach((zone) => zones.add(zone));
     });
 
-    return Array.from(locations);
+    return Array.from(zones);
 }
 
-export function defaultLegalLocationsForCardType(cardType: CardType) {
-    const drawCardLocations = [
-        Location.Hand,
-        Location.Deck,
-        Location.Discard,
-        Location.RemovedFromGame,
-        Location.SpaceArena,
-        Location.GroundArena,
-        Location.Resource
+export function defaultLegalZonesForCardType(cardType: CardType) {
+    const drawCardZones = [
+        ZoneName.Hand,
+        ZoneName.Deck,
+        ZoneName.Discard,
+        ZoneName.OutsideTheGame,
+        ZoneName.SpaceArena,
+        ZoneName.GroundArena,
+        ZoneName.Resource
     ];
 
     switch (cardType) {
         case CardType.TokenUnit:
         case CardType.TokenUpgrade:
-            return [Location.SpaceArena, Location.GroundArena, Location.OutsideTheGame];
+            return [ZoneName.SpaceArena, ZoneName.GroundArena, ZoneName.OutsideTheGame];
         case CardType.LeaderUnit:
-            return [Location.SpaceArena, Location.GroundArena];
+            return [ZoneName.SpaceArena, ZoneName.GroundArena];
         case CardType.Base:
         case CardType.Leader:
-            return [Location.Base];
+            return [ZoneName.Base];
         case CardType.BasicUnit:
         case CardType.BasicUpgrade:
         case CardType.Event:
-            return drawCardLocations;
+            return drawCardZones;
         default:
             Contract.fail(`Unknown card type: ${cardType}`);
             return null;
@@ -91,4 +93,18 @@ export function asArray<T>(val: T | T[]): T[] {
     }
 
     return Array.isArray(val) ? val : [val];
+}
+
+export function getRandomArrayElements(array: any[], nValues: number) {
+    Contract.assertTrue(nValues <= array.length, `Attempting to retrieve ${nValues} random elements from an array of length ${array.length}`);
+
+    const chosenItems = [];
+    for (let i = 0; i < nValues; i++) {
+        const index = Math.floor(Math.random() * array.length);
+        const choice = array.splice(index, 1)[0];
+
+        chosenItems.push(choice);
+    }
+
+    return chosenItems;
 }

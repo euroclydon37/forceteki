@@ -1,5 +1,5 @@
 import type { AbilityContext } from '../ability/AbilityContext';
-import { WildcardLocation, RelativePlayer } from '../Constants';
+import { WildcardZoneName, RelativePlayer } from '../Constants';
 import type { ICost, Result } from './ICost';
 import type { GameSystem } from '../gameSystem/GameSystem';
 import type { ISelectCardProperties } from '../../gameSystems/SelectCardSystem';
@@ -22,11 +22,7 @@ export class MetaActionCost<TContext extends AbilityContext = AbilityContext> ex
 
     public override canPay(context: TContext): boolean {
         const properties = this.gameSystem.generatePropertiesFromContext(context) as ISelectCardProperties;
-        const additionalProps = {
-            controller: RelativePlayer.Self,
-            locationFilter: properties.locationFilter || WildcardLocation.Any
-        };
-        return this.gameSystem.hasLegalTarget(context, additionalProps);
+        return this.gameSystem.hasLegalTarget(context);
     }
 
     public override queueGenerateEventGameSteps(events: GameEvent[], context: TContext, result: Result): void {
@@ -44,7 +40,7 @@ export class MetaActionCost<TContext extends AbilityContext = AbilityContext> ex
 
         const additionalProps = {
             activePromptTitle: this.activePromptTitle,
-            location: properties.locationFilter || WildcardLocation.Any,
+            zone: properties.zoneFilter || WildcardZoneName.Any,
             controller: RelativePlayer.Self,
             cancelHandler: !result.canCancel ? null : () => (result.cancelled = true),
             subActionProperties: (target: any) => {

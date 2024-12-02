@@ -2,25 +2,25 @@ import type { AbilityContext } from '../core/ability/AbilityContext';
 import type { Card } from '../core/card/Card';
 import CardSelectorFactory from '../core/cardSelector/CardSelectorFactory';
 import type BaseCardSelector from '../core/cardSelector/BaseCardSelector';
-import { CardTypeFilter, EffectName, Location, LocationFilter, RelativePlayer, TargetMode } from '../core/Constants';
+import { CardTypeFilter, EffectName, EventName, GameStateChangeRequired, ZoneName, ZoneFilter, MetaEventName, RelativePlayer, TargetMode, RelativePlayerFilter } from '../core/Constants';
 import { type ICardTargetSystemProperties, CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
-import type { GameSystem } from '../core/gameSystem/GameSystem';
 import type { GameEvent } from '../core/event/GameEvent';
 import * as Contract from '../core/utils/Contract';
-import { MetaSystem } from '../core/gameSystem/MetaSystem';
+import { CardTargetResolver } from '../core/ability/abilityTargets/CardTargetResolver';
+import { AggregateSystem } from '../core/gameSystem/AggregateSystem';
 
 export interface ISelectCardProperties<TContext extends AbilityContext = AbilityContext> extends ICardTargetSystemProperties {
     activePromptTitle?: string;
     player?: RelativePlayer;
     cardTypeFilter?: CardTypeFilter | CardTypeFilter[];
-    controller?: RelativePlayer;
-    locationFilter?: LocationFilter | LocationFilter[];
+    controller?: RelativePlayerFilter;
+    zoneFilter?: ZoneFilter | ZoneFilter[];
     cardCondition?: (card: Card, context: TContext) => boolean;
     checkTarget?: boolean;
     message?: string;
     manuallyRaiseEvent?: boolean;
     messageArgs?: (card: Card, player: RelativePlayer, properties: ISelectCardProperties<TContext>) => any[];
-    innerSystem: CardTargetSystem<TContext> | MetaSystem<TContext>;
+    innerSystem: CardTargetSystem<TContext> | AggregateSystem<TContext>;
     selector?: BaseCardSelector;
     mode?: TargetMode;
     numCards?: number;
@@ -31,15 +31,13 @@ export interface ISelectCardProperties<TContext extends AbilityContext = Ability
     effectArgs?: (context) => string[];
 }
 
-
-// TODO: ideally the pass option would work like it does for target resolvers, where we just add a "Pass"
-// button to the target selection window. Need to change it so that's possible with SelectCard.
-
 /**
  * A wrapper system for adding a target selection prompt around the execution the wrapped system.
  * Functions the same as a targetResolver and used in situations where one can't be created (e.g., costs).
  */
 export class SelectCardSystem<TContext extends AbilityContext = AbilityContext> extends CardTargetSystem<TContext, ISelectCardProperties<TContext>> {
+    public override readonly name: string = 'selectCard';
+    protected override readonly eventName: MetaEventName.SelectCard;
     protected override readonly defaultProperties: ISelectCardProperties<TContext> = {
         cardCondition: () => true,
         innerSystem: null,
@@ -78,7 +76,7 @@ export class SelectCardSystem<TContext extends AbilityContext = AbilityContext> 
         return properties;
     }
 
-    public override canAffect(card: Card, context: TContext, additionalProperties = {}): boolean {
+    public override canAffect(card: Card, context: TContext, additionalProperties = {}, mustChangeGameState = GameStateChangeRequired.None): boolean {
         const properties = this.generatePropertiesFromContext(context, additionalProperties);
         const player =
             (properties.checkTarget && context.choosingPlayerOverride) ||
@@ -119,7 +117,7 @@ export class SelectCardSystem<TContext extends AbilityContext = AbilityContext> 
 
         let buttons = [];
         buttons = properties.cancelHandler ? buttons.concat({ text: 'Cancel', arg: 'cancel' }) : buttons;
-        buttons = properties.innerSystem.isOptional(context) ? buttons.concat({ text: 'Choose no target', arg: 'noTarget' }) : buttons;
+        buttons = this.selectionIsOptional(properties, context) ? buttons.concat({ text: 'Choose no target', arg: 'noTarget' }) : buttons;
 
         const defaultProperties = {
             context: context,
@@ -163,5 +161,13 @@ export class SelectCardSystem<TContext extends AbilityContext = AbilityContext> 
     public override hasTargetsChosenByInitiatingPlayer(context: TContext, additionalProperties = {}): boolean {
         const properties = this.generatePropertiesFromContext(context, additionalProperties);
         return properties.checkTarget && properties.player !== RelativePlayer.Opponent;
+    }
+
+    private selectionIsOptional(properties, context): boolean {
+        if (properties.innerSystem.isOptional(context)) {
+            return true;
+        }
+        const controller = typeof properties.controller === 'function' ? properties.controller(context) : properties.controller;
+        return CardTargetResolver.allZonesAreHidden(properties.zoneFilter, controller) && properties.selector.hasAnyCardFilter;
     }
 }

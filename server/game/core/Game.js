@@ -18,10 +18,9 @@ const GameOverPrompt = require('./gameSteps/prompts/GameOverPrompt.js');
 const GameSystems = require('../gameSystems/GameSystemLibrary.js');
 const { GameEvent } = require('./event/GameEvent.js');
 const InitiateCardAbilityEvent = require('./event/InitiateCardAbilityEvent.js');
-const EventWindow = require('./event/EventWindow.js');
+const { EventWindow, TriggerHandlingMode } = require('./event/EventWindow');
 const InitiateAbilityEventWindow = require('./gameSteps/abilityWindow/InitiateAbilityEventWindow.js');
 const AbilityResolver = require('./gameSteps/AbilityResolver.js');
-const { SimultaneousEffectWindow } = require('./gameSteps/SimultaneousEffectWindow.js');
 const { AbilityContext } = require('./ability/AbilityContext.js');
 const Contract = require('./utils/Contract.js');
 const { cards } = require('../cards/Index.js');
@@ -29,7 +28,7 @@ const { cards } = require('../cards/Index.js');
 // const ConflictFlow = require('./gamesteps/conflict/conflictflow');
 // const MenuCommands = require('./MenuCommands');
 
-const { EffectName, EventName, Location, TokenName } = require('./Constants.js');
+const { EventName, ZoneName, TokenName, Trait, WildcardZoneName } = require('./Constants.js');
 const { BaseStepWithPipeline } = require('./gameSteps/BaseStepWithPipeline.js');
 const { default: Shield } = require('../cards/01_SOR/tokens/Shield.js');
 const { StateWatcherRegistrar } = require('./stateWatcher/StateWatcherRegistrar.js');
@@ -37,6 +36,11 @@ const { DistributeAmongTargetsPrompt } = require('./gameSteps/prompts/Distribute
 const HandlerMenuMultipleSelectionPrompt = require('./gameSteps/prompts/HandlerMenuMultipleSelectionPrompt.js');
 const { DropdownListPrompt } = require('./gameSteps/prompts/DropdownListPrompt.js');
 const { UnitPropertiesCard } = require('./card/propertyMixins/UnitProperties.js');
+const { Card } = require('./card/Card.js');
+const { GroundArenaZone } = require('./zone/GroundArenaZone.js');
+const { SpaceArenaZone } = require('./zone/SpaceArenaZone.js');
+const { AllArenasZone } = require('./zone/AllArenasZone.js');
+const EnumHelpers = require('./utils/EnumHelpers.js');
 
 class Game extends EventEmitter {
     constructor(details, options = {}) {
@@ -65,6 +69,7 @@ class Game extends EventEmitter {
         this.gameMode = details.gameMode;
         this.currentPhase = null;
         this.password = details.password;
+        this.playableCardTitles = details.playableCardTitles;
         this.roundNumber = 0;
         this.initialFirstPlayer = null;
         this.initiativePlayer = null;
@@ -72,10 +77,14 @@ class Game extends EventEmitter {
         this.actionPhaseActivePlayer = null;
         this.tokenFactories = null;
         this.stateWatcherRegistrar = new StateWatcherRegistrar(this);
+        this.movedCards = [];
 
         this.registerGlobalRulesListeners();
 
         this.shortCardData = options.shortCardData || [];
+
+        // TODO TWIN SUNS
+        Contract.assertArraySize(details.players, 2, 'Game must have exactly 2 players');
 
         details.players.forEach((player) => {
             this.playersAndSpectators[player.user.username] = new Player(
@@ -90,6 +99,12 @@ class Game extends EventEmitter {
         details.spectators?.forEach((spectator) => {
             this.playersAndSpectators[spectator.user.username] = new Spectator(spectator.id, spectator.user);
         });
+
+        const [player1, player2] = this.getPlayers();
+
+        this.spaceArena = new SpaceArenaZone(this, player1, player2);
+        this.groundArena = new GroundArenaZone(this, player1, player2);
+        this.allArenas = new AllArenasZone(this, this.groundArena, this.spaceArena);
 
         this.setMaxListeners(0);
 
@@ -219,8 +234,9 @@ class Game extends EventEmitter {
         if (!this.actionPhaseActivePlayer.opponent.passedActionPhase) {
             this.createEventAndOpenWindow(
                 EventName.OnPassActionPhasePriority,
+                null,
                 { player: this.actionPhaseActivePlayer, actionWindow: this },
-                false,
+                TriggerHandlingMode.ResolvesTriggers,
                 () => {
                     this.actionPhaseActivePlayer = this.actionPhaseActivePlayer.opponent;
                 }
@@ -270,22 +286,16 @@ class Game extends EventEmitter {
 
     /**
      * Returns all cards which matching the passed predicated function from either players arenas
-     * @param {Function} predicate - card => Boolean
+     * @param {(Card) => boolean} predicate - card => Boolean
      * @returns {Array} Array of DrawCard objects
      */
     findAnyCardsInPlay(predicate = () => true) {
-        var foundCards = [];
-
-        this.getPlayers().forEach((player) => {
-            foundCards = foundCards.concat(player.findCards(player.getArenaCards(), predicate));
-        });
-
-        return foundCards;
+        return this.allArenas.getCards({ condition: predicate });
     }
 
     /**
      * Returns if a card is in play (units, upgrades, base, leader) that has the passed trait
-     * @param {string} trait
+     * @param {Trait} trait
      * @returns {boolean} true/false if the trait is in pay
      */
     isTraitInPlay(trait) {
@@ -301,6 +311,23 @@ class Game extends EventEmitter {
     //     this.allCards.push(token);
     //     return token;
     // }
+
+    /**
+     * Return the `Zone` object corresponding to the arena type
+     * @param {ZoneName.SpaceArena | ZoneName.GroundArena | WildcardZoneName.AnyArena} arenaName
+     */
+    getArena(arenaName) {
+        switch (arenaName) {
+            case ZoneName.GroundArena:
+                return this.groundArena;
+            case ZoneName.SpaceArena:
+                return this.spaceArena;
+            case WildcardZoneName.AnyArena:
+                return this.allArenas;
+            default:
+                Contract.fail(`Unknown arena enum value: ${arenaName}`);
+        }
+    }
 
     get actions() {
         return GameSystems;
@@ -565,11 +592,12 @@ class Game extends EventEmitter {
      * Called when a player clicks Shuffle Deck on the conflict deck menu in
      * the client
      * @param {String} playerName
+     * @param {AbilityContext} context
      */
-    shuffleDeck(playerName) {
+    shuffleDeck(playerName, context = null) {
         let player = this.getPlayerByName(playerName);
         if (player) {
-            player.shuffleDeck();
+            player.shuffleDeck(context);
         }
     }
 
@@ -792,7 +820,7 @@ class Game extends EventEmitter {
     beginRound() {
         this.roundNumber++;
         this.actionPhaseActivePlayer = this.initiativePlayer;
-        this.createEventAndOpenWindow(EventName.OnBeginRound, {}, true);
+        this.createEventAndOpenWindow(EventName.OnBeginRound, null, {}, TriggerHandlingMode.ResolvesTriggers);
         this.queueStep(new ActionPhase(this));
         this.queueStep(new RegroupPhase(this));
         this.queueSimpleStep(() => this.roundEnded(), 'roundEnded');
@@ -800,13 +828,21 @@ class Game extends EventEmitter {
     }
 
     roundEnded() {
-        this.createEventAndOpenWindow(EventName.OnRoundEnded, {}, true);
+        this.createEventAndOpenWindow(EventName.OnRoundEnded, null, {}, TriggerHandlingMode.ResolvesTriggers);
+
+        // at end of round, any tokens in outsideTheGameZone are removed completely
+        for (const player of this.getPlayers()) {
+            for (const token of player.outsideTheGameZone.cards.filter((card) => card.isToken())) {
+                this.removeTokenFromPlay(token);
+            }
+        }
     }
 
     claimInitiative(player) {
         this.initiativePlayer = player;
         this.isInitiativeClaimed = true;
-        this.createEventAndOpenWindow(EventName.OnClaimInitiative, { player }, true);
+        player.passedActionPhase = true;
+        this.createEventAndOpenWindow(EventName.OnClaimInitiative, null, { player }, TriggerHandlingMode.ResolvesTriggers);
 
         // update game state for the sake of constant abilities that check initiative
         this.resolveGameState();
@@ -863,26 +899,28 @@ class Game extends EventEmitter {
     /**
      * Creates a game GameEvent, and opens a window for it.
      * @param {String} eventName
+     * @param {AbilityContext} context - context for this event. Uses getFrameworkContext() to populate if null
      * @param {Object} params - parameters for this event
-     * @param {boolean} ownsTriggerWindow - whether the EventWindow should make its own TriggeredAbilityWindow to resolve
+     * @param {TriggerHandlingMode} triggerHandlingMode - whether the EventWindow should make its own TriggeredAbilityWindow to resolve
      * after its events and any nested events
      * @param {(GameEvent) => void} handler - (GameEvent + params) => undefined
      * returns {GameEvent} - this allows the caller to track GameEvent.resolved and
      * tell whether or not the handler resolved successfully
      */
-    createEventAndOpenWindow(eventName, params = {}, ownsTriggerWindow = false, handler = () => undefined) {
-        let event = new GameEvent(eventName, params, handler);
-        this.openEventWindow([event], ownsTriggerWindow);
+    createEventAndOpenWindow(eventName, context = null, params = {}, triggerHandlingMode = TriggerHandlingMode.PassesTriggersToParentWindow, handler = () => undefined) {
+        let event = new GameEvent(eventName, context ?? this.getFrameworkContext(), params, handler);
+        this.openEventWindow([event], triggerHandlingMode);
         return event;
     }
 
     /**
      * Directly emits an event to all listeners (does NOT open an event window)
      * @param {String} eventName
+     * @param {AbilityContext} context - Uses getFrameworkContext() to populate if null
      * @param {Object} params - parameters for this event
      */
-    emitEvent(eventName, params = {}) {
-        let event = new GameEvent(eventName, params);
+    emitEvent(eventName, context = null, params = {}) {
+        let event = new GameEvent(eventName, context ?? this.getFrameworkContext(), params);
         this.emit(event.name, event);
     }
 
@@ -890,20 +928,20 @@ class Game extends EventEmitter {
      * Creates an EventWindow which will open windows for each kind of triggered
      * ability which can respond any passed events, and execute their handlers.
      * @param events
-     * @param ownsTriggerWindow
+     * @param {TriggerHandlingMode} triggerHandlingMode
      * @returns {EventWindow}
      */
-    openEventWindow(events, ownsTriggerWindow = false) {
+    openEventWindow(events, triggerHandlingMode = TriggerHandlingMode.PassesTriggersToParentWindow) {
         if (!Array.isArray(events)) {
             events = [events];
         }
-        return this.queueStep(new EventWindow(this, events, ownsTriggerWindow));
+        return this.queueStep(new EventWindow(this, events, triggerHandlingMode));
     }
 
     /**
      * Creates a "sub-window" for events which will have priority resolution and
      * be resolved immediately after the currently resolving set of events, preceding
-     * the next steps of any ability being triggered.
+     * the next steps of any ability being resolved.
      *
      * Typically used for defeat events.
      */
@@ -911,26 +949,26 @@ class Game extends EventEmitter {
         this.currentEventWindow.addSubwindowEvents(events);
     }
 
-    /**
-     * Raises a custom event window for checking for any cancels to a card
-     * ability
-     * @param {Object} params
-     * @param {Function} handler - this is an arrow function which is called if
-     * nothing cancels the event
-     */
-    raiseInitiateAbilityEvent(params, handler) {
-        this.raiseMultipleInitiateAbilityEvents([{ params: params, handler: handler }]);
-    }
+    // /**
+    //  * Raises a custom event window for checking for any cancels to a card
+    //  * ability
+    //  * @param {Object} params
+    //  * @param {Function} handler - this is an arrow function which is called if
+    //  * nothing cancels the event
+    //  */
+    // raiseInitiateAbilityEvent(params, handler) {
+    //     this.raiseMultipleInitiateAbilityEvents([{ params: params, handler: handler }]);
+    // }
 
-    /**
-     * Raises a custom event window for checking for any cancels to several card
-     * abilities which initiate simultaneously
-     * @param {Array} eventProps
-     */
-    raiseMultipleInitiateAbilityEvents(eventProps) {
-        let events = eventProps.map((event) => new InitiateCardAbilityEvent(event.params, event.handler));
-        this.queueStep(new InitiateAbilityEventWindow(this, events));
-    }
+    // /**
+    //  * Raises a custom event window for checking for any cancels to several card
+    //  * abilities which initiate simultaneously
+    //  * @param {Array} eventProps
+    //  */
+    // raiseMultipleInitiateAbilityEvents(eventProps) {
+    //     let events = eventProps.map((event) => new InitiateCardAbilityEvent(event.params, event.handler));
+    //     this.queueStep(new InitiateAbilityEventWindow(this, events));
+    // }
 
     // /**
     //  * Checks whether a game action can be performed on a card or an array of
@@ -1107,7 +1145,22 @@ class Game extends EventEmitter {
         this.addMessage('{0} has reconnected', player);
     }
 
+    /** Goes through the list of cards moved during event resolution and does a uniqueness rule check for each */
+    checkUniqueRule() {
+        for (const movedCard of this.movedCards) {
+            if (EnumHelpers.isArena(movedCard.zoneName) && movedCard.unique) {
+                movedCard.checkUnique();
+            }
+        }
+    }
+
     resolveGameState(hasChanged = false, events = []) {
+        // first go through and enable / disabled abilities for cards that have been moved in or out of the arena
+        for (const movedCard of this.movedCards) {
+            movedCard.resolveAbilitiesForNewZone();
+        }
+        this.movedCards = [];
+
         // check for a game state change (recalculating attack stats if necessary)
         if (
             // (!this.currentAttack && this.ongoingEffectEngine.resolveEffects(hasChanged)) ||
@@ -1162,25 +1215,35 @@ class Game extends EventEmitter {
         this.allCards.push(token);
         player.decklist.tokens.push(token);
         player.decklist.allCards.push(token);
-        player.outsideTheGameCards.push(token);
+        player.outsideTheGameZone.addCard(token);
+        token.initializeZone(player.outsideTheGameZone);
 
         return token;
     }
 
     /**
-     * Removes a shield token from all relevant card lists
+     * Removes a shield token from all relevant card lists, including its zone
      * @param {import('./card/CardTypes.js').TokenCard} token
      */
     removeTokenFromPlay(token) {
-        Contract.assertEqual(token.location, Location.OutsideTheGame,
-            `Tokens must be moved to location ${Location.OutsideTheGame} before removing from play, instead found token at ${token.location}`
+        Contract.assertEqual(token.zoneName, ZoneName.OutsideTheGame,
+            `Tokens must be moved to zone ${ZoneName.OutsideTheGame} before removing from play, instead found token at ${token.zoneName}`
         );
 
         const player = token.owner;
         this.filterCardFromList(token, this.allCards);
         this.filterCardFromList(token, player.decklist.tokens);
         this.filterCardFromList(token, player.decklist.allCards);
-        this.filterCardFromList(token, player.outsideTheGameCards);
+        token.removeFromGame();
+    }
+
+    /**
+     * Registers that a card has been moved to a different zone and therefore requires updating in the
+     * next call to resolveGameState
+     * @param {Card} card
+     */
+    registerMovedCard(card) {
+        this.movedCards.push(card);
     }
 
     filterCardFromList(removeCard, list) {
@@ -1263,38 +1326,37 @@ class Game extends EventEmitter {
     // /*
     //  * This information is sent to the client
     //  */
-    // getState(notInactivePlayerName) {
-    //     let activePlayer = this.playersAndSpectators[notInactivePlayerName] || new AnonymousSpectator();
-    //     let playerState = {};
-    //     let ringState = {};
-    //     let conflictState = {};
-    //     let { blocklist, email, emailHash, promptedActionWindows, settings, ...simplifiedOwner } = this.owner;
-    // if (this.started) {
-    // for (const player of this.getPlayers()) {
-    //     playerState[player.name] = player.getState(activePlayer);
-    // }
+    getState(notInactivePlayerName) {
+        let activePlayer = this.playersAndSpectators[notInactivePlayerName] || new AnonymousSpectator();
+        let playerState = {};
+        let { blocklist, email, emailHash, promptedActionWindows, settings, ...simplifiedOwner } = this.owner;
+        if (this.started) {
+            for (const player of this.getPlayers()) {
+                playerState[player.name] = player.getState(activePlayer);
+            }
 
-    // return {
-    //     id: this.id,
-    //     manualMode: this.manualMode,
-    //     name: this.name,
-    //     owner: simplifiedOwner,
-    //     players: playerState,
-    //     rings: ringState,
-    //     conflict: conflictState,
-    //     phase: this.currentPhase,
-    //     // messages: this.gameChat.messages,
-    //     spectators: this.getSpectators().map((spectator) => {
-    //         return {
-    //             id: spectator.id,
-    //             name: spectator.name
-    //         };
-    //     }),
-    //     started: this.started,
-    //     gameMode: this.gameMode,
-    //     winner: this.winner ? this.winner.name : undefined
-    // };
-    // }
+            return {
+                playerUpdate: activePlayer.name,
+                id: this.id,
+                manualMode: this.manualMode,
+                name: this.name,
+                owner: simplifiedOwner,
+                players: playerState,
+                phase: this.currentPhase,
+                messages: this.gameChat.messages,
+                spectators: this.getSpectators().map((spectator) => {
+                    return {
+                        id: spectator.id,
+                        name: spectator.name
+                    };
+                }),
+                started: this.started,
+                gameMode: this.gameMode,
+                // winner: this.winner ? this.winner.user.name : undefined
+            };
+        }
+        return {};
+    }
 
     // return this.getSummary(notInactivePlayerName);
     // }

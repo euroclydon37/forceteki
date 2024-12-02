@@ -1,4 +1,4 @@
-import { GainAbilitySource, IAbilityPropsWithType, IActionAbilityPropsWithType, ITriggeredAbilityPropsWithType } from '../../../Interfaces';
+import { IActionAbilityPropsWithType, ITriggeredAbilityPropsWithType } from '../../../Interfaces';
 import type { InPlayCard } from '../../card/baseClasses/InPlayCard';
 import type { Card } from '../../card/Card';
 import { AbilityType } from '../../Constants';
@@ -11,7 +11,7 @@ export class GainAbility extends OngoingEffectValueWrapper<IActionAbilityPropsWi
 
     private abilityIdentifier: string;
     private abilityUuidByTargetCard = new Map<InPlayCard, string>();
-    private gainAbilitySource: GainAbilitySource;
+    private gainAbilitySource: Card;
     private source: Card;
 
     public constructor(gainedAbilityProps: IActionAbilityPropsWithType | ITriggeredAbilityPropsWithType) {
@@ -22,13 +22,19 @@ export class GainAbility extends OngoingEffectValueWrapper<IActionAbilityPropsWi
 
     public override setContext(context) {
         Contract.assertNotNullLike(context.source);
-        Contract.assertNotNullLike(context.ability?.uuid);
+
+        if (context.ability?.abilityIdentifier) {
+            this.abilityIdentifier = `gained_from_${context.ability.abilityIdentifier}`;
+        } else if (context.ability?.isLastingEffect) {
+            this.abilityIdentifier = 'gained_from_lasting_effect';
+        } else if (!this.abilityIdentifier) {
+            Contract.fail('GainAbility.setContext() called without a valid context');
+        }
 
         super.setContext(context);
 
-        this.abilityIdentifier = `gained_from_${context.ability.abilityIdentifier}`;
         this.source = this.context.source;
-        this.gainAbilitySource = { card: this.source, abilityUuid: context.ability.uuid };
+        this.gainAbilitySource = this.source;
     }
 
     public override apply(target: InPlayCard) {

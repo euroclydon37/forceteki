@@ -1,4 +1,6 @@
 import { BaseCard } from './BaseCard';
+import { InPlayCard } from './baseClasses/InPlayCard';
+import { Card } from './Card';
 import { EventCard } from './EventCard';
 import { LeaderCard } from './LeaderCard';
 import { LeaderUnitCard } from './LeaderUnitCard';
@@ -51,13 +53,12 @@ export type AnyCard =
   LeaderUnitCard |
   TokenUnitCard;
 
-/** Type union for any card type that can be played (not deployed) */
-export type PlayableCard =
+// TODO TYPE REFACTOR: tokens should be separable from playable cards in the type hierarchy
+/** Type union for any card type that can be played or created (not deployed) */
+export type TokenOrPlayableCard =
   EventCard |
   UpgradeCard |
   NonLeaderUnitCard;
 
 // Base is the only type of card that isn't in the PlayableOrDeployable subclass
 type PlayableOrDeployableCardTypes = Exclude<AnyCard, BaseCard>;
-
-export type InPlayCard = Exclude<AnyCard, BaseCard | EventCard>;

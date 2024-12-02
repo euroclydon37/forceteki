@@ -1,6 +1,5 @@
 import { AbilityContext } from '../core/ability/AbilityContext';
-import { EventName, Location, PlayType, RelativePlayer, TargetMode } from '../core/Constants';
-import { GameEvent } from '../core/event/GameEvent';
+import { DamageType, PlayType } from '../core/Constants';
 import { CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
 import { GameSystem } from '../core/gameSystem/GameSystem';
 import * as GameSystems from '../gameSystems/GameSystemLibrary';
@@ -13,7 +12,6 @@ import { ICost } from '../core/cost/ICost';
 import { GameSystemCost } from '../core/cost/GameSystemCost';
 import { MetaActionCost } from '../core/cost/MetaActionCost';
 import { PlayCardResourceCost } from './PlayCardResourceCost';
-import { ReturnToHandFromPlaySystem } from '../gameSystems/ReturnToHandFromPlaySystem';
 // import { TargetDependentFateCost } from './costs/TargetDependentFateCost';
 import Player from '../core/Player';
 
@@ -53,10 +51,18 @@ export function defeat<TContext extends AbilityContext = AbilityContext>(propert
 }
 
 /**
+ * Cost that requires dealing the given amount of damage to a card that matches
+ * the passed condition predicate function.
+ */
+export function dealDamage<TContext extends AbilityContext = AbilityContext>(amount: number, properties: SelectCostProperties<TContext>): ICost<TContext> {
+    return getSelectCost(GameSystems.damage<TContext>({ type: DamageType.Ability, amount: amount }), properties, `Select card to deal ${amount} damage to`);
+}
+
+/**
  * Cost that will return to hand from the play area the card that initiated the ability
  */
 export function returnSelfToHandFromPlay<TContext extends AbilityContext = AbilityContext>(): ICost<TContext> {
-    return new GameSystemCost<TContext>(GameSystems.returnToHandFromPlay({ isCost: true }));
+    return new GameSystemCost<TContext>(GameSystems.returnToHand({ isCost: true }));
 }
 
 // /**
@@ -98,7 +104,7 @@ export function returnSelfToHandFromPlay<TContext extends AbilityContext = Abili
 //  */
 // export function shuffleIntoDeck(properties: SelectCostProperties): ICost {
 //     return getSelectCost(
-//         GameSystems.moveCard({ destination: Location.Deck, shuffle: true }),
+//         GameSystems.moveCard({ destination: ZoneName.Deck, shuffle: true }),
 //         properties,
 //         'Select card to shuffle into deck'
 //     );
@@ -124,7 +130,7 @@ export function returnSelfToHandFromPlay<TContext extends AbilityContext = Abili
 // export function discardCard(properties?: SelectCostProperties): Cost {
 //     return getSelectCost(
 //         GameSystems.discardCard(),
-//         Object.assign({ location: Location.Hand, mode: TargetMode.Exactly }, properties),
+//         Object.assign({ zone: ZoneName.Hand, mode: TargetMode.Exactly }, properties),
 //         (properties?.numCards ?? 0) > 1 ? `Select ${properties.numCards} cards to discard` : 'Select card to discard'
 //     );
 // }
@@ -140,7 +146,7 @@ export function returnSelfToHandFromPlay<TContext extends AbilityContext = Abili
 //         },
 //         pay: (context) => {
 //             for (const card of context.costs.discardTopCardsFromDeck as Card[]) {
-//                 card.controller.moveCard(card, Location.Deck);
+//                 card.controller.moveCard(card, ZoneName.Deck);
 //             }
 //         }
 //     };
@@ -156,7 +162,7 @@ export function returnSelfToHandFromPlay<TContext extends AbilityContext = Abili
 // /**
 //  * Cost that requires removing a card selected by the player from the game.
 //  */
-// export function removeSelfFromGame(properties?: { location: Array<Location> }): Cost {
+// export function removeSelfFromGame(properties?: { zone: Array<ZoneName> }): Cost {
 //     return new GameSystemCost(GameSystems.removeFromGame(properties));
 // }
 
@@ -382,7 +388,7 @@ export function abilityResourceCost<TContext extends AbilityContext = AbilityCon
 //                 mode: TargetMode.Exactly,
 //                 numCards: amount,
 //                 ordered: false,
-//                 location: Location.Hand,
+//                 zone: ZoneName.Hand,
 //                 controller: RelativePlayer.Self,
 //                 onSelect: (player, cards) => {
 //                     if (cards.length === 0) {
@@ -568,7 +574,7 @@ export function abilityResourceCost<TContext extends AbilityContext = AbilityCon
 //     };
 // }
 
-// export function switchLocation(): Cost {
+// export function switchZone(): Cost {
 //     return {
 //         promptsPlayer: false,
 //         canPay(context: TriggeredAbilityContext) {
@@ -578,7 +584,7 @@ export function abilityResourceCost<TContext extends AbilityContext = AbilityCon
 //             return canMoveHome || canMoveToConflict;
 //         },
 //         getActionName(context: TriggeredAbilityContext) {
-//             return 'switchLocation';
+//             return 'switchZone';
 //         },
 //         getCostMessage(context: TriggeredAbilityContext) {
 //             if (!context.source.isParticipating()) {
@@ -587,13 +593,13 @@ export function abilityResourceCost<TContext extends AbilityContext = AbilityCon
 //             return ['moving {1} to the conflict', [context.source]];
 //         },
 //         resolve(context: TriggeredAbilityContext, result) {
-//             context.costs.switchLocation = context.source;
+//             context.costs.switchZone = context.source;
 //         },
 //         payEvent(context: TriggeredAbilityContext) {
 //             const action = context.source.isParticipating()
-//                 ? context.game.actions.sendHome({ target: context.costs.switchLocation })
-//                 : context.game.actions.moveToConflict({ target: context.costs.switchLocation });
-//             return action.generateEvent(context.costs.switchLocation, context);
+//                 ? context.game.actions.sendHome({ target: context.costs.switchZone })
+//                 : context.game.actions.moveToConflict({ target: context.costs.switchZone });
+//             return action.generateEvent(context.costs.switchZone, context);
 //         }
 //     };
 // }

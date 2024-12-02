@@ -1,8 +1,6 @@
 describe('Shoot First', function () {
     integration(function (contextRef) {
         describe('Shoot First Ability', function () {
-            const { context } = contextRef;
-
             beforeEach(function () {
                 contextRef.setupTest({
                     phase: 'action',
@@ -24,9 +22,9 @@ describe('Shoot First', function () {
                 context.player1.clickCard(context.r2d2);
 
                 // check game state
-                expect(context.r2d2.location).toBe('discard');
+                expect(context.r2d2.zoneName).toBe('discard');
                 expect(context.battlefieldMarine.damage).toBe(0);
-                expect(context.shootFirst.location).toBe('discard');
+                expect(context.shootFirst.zoneName).toBe('discard');
             });
         });
     });

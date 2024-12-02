@@ -1,43 +1,49 @@
 import type { AbilityContext } from '../core/ability/AbilityContext.js';
 import PlayerAction from '../core/ability/PlayerAction.js';
-import { AbilityRestriction, PhaseName, WildcardLocation } from '../core/Constants.js';
+import { AbilityRestriction, PhaseName, WildcardZoneName } from '../core/Constants.js';
 import * as EnumHelpers from '../core/utils/EnumHelpers.js';
 import { exhaustSelf } from '../costs/CostLibrary.js';
 import * as GameSystemLibrary from '../gameSystems/GameSystemLibrary.js';
 import { Card } from '../core/card/Card';
 import { AttackStepsSystem, IAttackProperties } from '../gameSystems/AttackStepsSystem.js';
+import { GameSystemCost } from '../core/cost/GameSystemCost.js';
+import { ExhaustSystem } from '../gameSystems/ExhaustSystem.js';
+
+interface IInitiateAttackProperties extends IAttackProperties {
+    allowExhaustedAttacker?: boolean;
+}
 
 /**
  * Implements the action for a player to initiate an attack from a unit.
  * Calls {@link AttackStepsSystem} to resolve the attack.
  *
- * Default behaviors can be overridden by passing in an {@link IAttackProperties} object.
+ * Default behaviors can be overridden by passing in an {@link IInitiateAttackProperties} object.
  * See {@link GameSystemLibrary.attack} for using it in abilities.
  */
 export class InitiateAttackAction extends PlayerAction {
-    public constructor(card: Card, private attackProperties?: IAttackProperties) {
-        super(card, 'Attack', [exhaustSelf()], {
+    private allowExhaustedAttacker: boolean;
+
+    public constructor(card: Card, private attackProperties?: IInitiateAttackProperties) {
+        const exhaustCost = attackProperties?.allowExhaustedAttacker
+            ? new GameSystemCost(new ExhaustSystem({ isCost: true }), true)
+            : exhaustSelf();
+
+        super(card, 'Attack', [exhaustCost], {
             immediateEffect: new AttackStepsSystem(Object.assign({}, attackProperties, { attacker: card })),
-            locationFilter: WildcardLocation.AnyAttackable,
+            zoneFilter: WildcardZoneName.AnyAttackable,
             activePromptTitle: 'Choose a target for attack'
         });
     }
 
     public override meetsRequirements(context = this.createContext(), ignoredRequirements: string[] = []): string {
-        if (
-            !ignoredRequirements.includes('phase') &&
-            context.game.currentPhase !== PhaseName.Action
-        ) {
-            return 'phase';
-        }
         if (context.player !== context.source.controller) {
             return 'player';
         }
         if (
-            !ignoredRequirements.includes('location') &&
-            !EnumHelpers.isArena(context.source.location)
+            !ignoredRequirements.includes('zone') &&
+            !EnumHelpers.isArena(context.source.zoneName)
         ) {
-            return 'location';
+            return 'zone';
         }
         if (context.player.hasRestriction(AbilityRestriction.Attack, context)) {
             return 'restriction';
@@ -45,6 +51,7 @@ export class InitiateAttackAction extends PlayerAction {
         if (!this.targetResolvers[0].hasLegalTarget(context)) {
             return 'target';
         }
+
         return super.meetsRequirements(context, ignoredRequirements);
     }
 

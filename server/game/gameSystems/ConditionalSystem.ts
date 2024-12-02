@@ -1,15 +1,18 @@
 import type { AbilityContext } from '../core/ability/AbilityContext';
+import { GameStateChangeRequired, MetaEventName } from '../core/Constants';
 import type { GameEvent } from '../core/event/GameEvent';
 import { GameSystem, IGameSystemProperties } from '../core/gameSystem/GameSystem';
-import { MetaSystem } from '../core/gameSystem/MetaSystem';
+import { AggregateSystem } from '../core/gameSystem/AggregateSystem';
 
+// TODO: allow providing only onTrue or onFalse in the properties so we don't need to use noAction()
 export interface IConditionalSystemProperties<TContext extends AbilityContext = AbilityContext> extends IGameSystemProperties {
     condition: ((context: TContext, properties: IConditionalSystemProperties) => boolean) | boolean;
     onTrue: GameSystem<TContext>;
     onFalse: GameSystem<TContext>;
 }
 
-export class ConditionalSystem<TContext extends AbilityContext = AbilityContext> extends MetaSystem<TContext, IConditionalSystemProperties<TContext>> {
+export class ConditionalSystem<TContext extends AbilityContext = AbilityContext> extends AggregateSystem<TContext, IConditionalSystemProperties<TContext>> {
+    protected override readonly eventName = MetaEventName.Conditional;
     public override getInnerSystems(properties: IConditionalSystemProperties<TContext>) {
         return [properties.onTrue, properties.onFalse];
     }
@@ -18,8 +21,8 @@ export class ConditionalSystem<TContext extends AbilityContext = AbilityContext>
         return this.getGameAction(context).getEffectMessage(context);
     }
 
-    public override canAffect(target: any, context: TContext, additionalProperties = {}): boolean {
-        return this.getGameAction(context, additionalProperties).canAffect(target, context, additionalProperties);
+    public override canAffect(target: any, context: TContext, additionalProperties = {}, mustChangeGameState = GameStateChangeRequired.None): boolean {
+        return this.getGameAction(context, additionalProperties).canAffect(target, context, additionalProperties, mustChangeGameState);
     }
 
     public override hasLegalTarget(context: TContext, additionalProperties = {}): boolean {

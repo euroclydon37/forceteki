@@ -33,7 +33,6 @@ describe('Baze Malbus, Temple Guardian', function() {
 
                     // Baze Malbus automatically selected due to sentinel
                     expect(context.battlefieldMarine.damage).toBe(2);
-                    expect(context.player1).toBeActivePlayer();
                     expect(context.bazeMalbus.damage).toBe(3);
                 });
             });

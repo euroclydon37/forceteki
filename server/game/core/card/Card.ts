@@ -1,21 +1,19 @@
-import { IActionAbilityProps, IConstantAbilityProps } from '../../Interfaces';
+import { IActionAbilityProps, IConstantAbilityProps, Zone } from '../../Interfaces';
 import { ActionAbility } from '../ability/ActionAbility';
 import PlayerOrCardAbility from '../ability/PlayerOrCardAbility';
-import OngoingEffectSource from '../ongoingEffect/OngoingEffectSource';
+import { OngoingEffectSource } from '../ongoingEffect/OngoingEffectSource';
 import type Player from '../Player';
 import * as Contract from '../utils/Contract';
-import { AbilityRestriction, AbilityType, Arena, Aspect, CardType, Duration, EffectName, EventName, KeywordName, Location, Trait, WildcardLocation } from '../Constants';
+import { AbilityRestriction, Aspect, CardType, Duration, EffectName, EventName, KeywordName, ZoneName, MoveZoneDestination, DeckZoneDestination, RelativePlayer, Trait, WildcardZoneName } from '../Constants';
 import * as EnumHelpers from '../utils/EnumHelpers';
-import AbilityHelper from '../../AbilityHelper';
-import * as Helpers from '../utils/Helpers';
 import { AbilityContext } from '../ability/AbilityContext';
-import CardAbility from '../ability/CardAbility';
+import { CardAbility } from '../ability/CardAbility';
 import type Shield from '../../cards/01_SOR/tokens/Shield';
 import { KeywordInstance, KeywordWithCostValues } from '../ability/KeywordInstance';
 import * as KeywordHelpers from '../ability/KeywordHelpers';
 import { StateWatcherRegistrar } from '../stateWatcher/StateWatcherRegistrar';
 import type { EventCard } from './EventCard';
-import type { CardWithExhaustProperty, CardWithTriggeredAbilities, CardWithConstantAbilities, TokenCard, UnitCard, CardWithDamageProperty } from './CardTypes';
+import type { CardWithExhaustProperty, CardWithTriggeredAbilities, CardWithConstantAbilities, TokenCard, UnitCard, CardWithDamageProperty, TokenOrPlayableCard } from './CardTypes';
 import type { UpgradeCard } from './UpgradeCard';
 import type { BaseCard } from './BaseCard';
 import type { LeaderCard } from './LeaderCard';
@@ -25,6 +23,7 @@ import type { PlayableOrDeployableCard } from './baseClasses/PlayableOrDeployabl
 import type { InPlayCard } from './baseClasses/InPlayCard';
 import { v4 as uuidv4 } from 'uuid';
 import { IConstantAbility } from '../ongoingEffect/IConstantAbility';
+import { CaptureZone } from '../zone/CaptureZone';
 
 // required for mixins to be based on this class
 export type CardConstructor = new (...args: any[]) => Card;
@@ -38,14 +37,11 @@ export type CardConstructor = new (...args: any[]) => Card;
  */
 export class Card extends OngoingEffectSource {
     public static implemented = false;
-
     public readonly aspects: Aspect[] = [];
     public readonly internalName: string;
     public readonly subtitle?: string;
     public readonly title: string;
     public readonly unique: boolean;
-
-    public controller: Player;
 
     protected override readonly id: string;
     protected readonly printedKeywords: KeywordInstance[];
@@ -55,16 +51,20 @@ export class Card extends OngoingEffectSource {
     protected actionAbilities: ActionAbility[] = [];
     protected constantAbilities: IConstantAbility[] = [];
     protected _controller: Player;
-    protected defaultController: Player;
     protected _facedown = true;
+    protected hasImplementationFile: boolean;   // this will be set by the ability setup methods
     protected hiddenForController = true;      // TODO: is this correct handling of hidden / visible card state? not sure how this integrates with the client
     protected hiddenForOpponent = true;
 
     private nextAbilityIdx = 0;
-    private _location: Location;
+    private _zone: Zone;
 
 
     // ******************************************** PROPERTY GETTERS ********************************************
+    public get controller(): Player {
+        return this._controller;
+    }
+
     public get facedown(): boolean {
         return this._facedown;
     }
@@ -73,8 +73,9 @@ export class Card extends OngoingEffectSource {
         return this.getKeywords();
     }
 
-    public get location(): Location {
-        return this._location;
+    /** @deprecated use title instead**/
+    public override get name() {
+        return super.name;
     }
 
     public get traits(): Set<Trait> {
@@ -83,6 +84,18 @@ export class Card extends OngoingEffectSource {
 
     public get type(): CardType {
         return this.printedType;
+    }
+
+    public get zone(): Zone {
+        return this._zone;
+    }
+
+    protected set zone(zone: Zone) {
+        this._zone = zone;
+    }
+
+    public get zoneName(): ZoneName {
+        return this._zone?.name;
     }
 
     // *********************************************** CONSTRUCTOR ***********************************************
@@ -101,8 +114,7 @@ export class Card extends OngoingEffectSource {
         this.title = cardData.title;
         this.unique = cardData.unique;
 
-        this.controller = owner;
-        this.defaultController = owner;
+        this._controller = owner;
         this.id = cardData.id;
         this.printedTraits = new Set(EnumHelpers.checkConvertToEnum(cardData.traits, Trait));
         this.printedType = Card.buildTypeFromPrinted(cardData.types);
@@ -110,12 +122,6 @@ export class Card extends OngoingEffectSource {
         this.printedKeywords = KeywordHelpers.parseKeywords(cardData.keywords,
             this.printedType === CardType.Leader ? cardData.deployBox : cardData.text,
             this.internalName);
-
-        if (this.isToken()) {
-            this._location = Location.OutsideTheGame;
-        } else {
-            this._location = Location.Deck;
-        }
 
         this.setupStateWatchers(this.owner.game.stateWatcherRegistrar);
     }
@@ -129,14 +135,14 @@ export class Card extends OngoingEffectSource {
     public getActionAbilities(): ActionAbility[] {
         const deduplicatedActionAbilities: ActionAbility[] = [];
 
-        const seenSourceUuids = new Set<string>();
+        const seenCardNameSources = new Set<string>();
         for (const action of this.actionAbilities) {
             if (action.printedAbility) {
                 deduplicatedActionAbilities.push(action);
-            } else if (!seenSourceUuids.has(action.gainAbilitySource.uuid)) {
+            } else if (!seenCardNameSources.has(action.gainAbilitySource.internalName)) {
                 // Deduplicate any identical gained action abilities from the same source card (e.g., two Heroic Resolve actions)
                 deduplicatedActionAbilities.push(action);
-                seenSourceUuids.add(action.gainAbilitySource.uuid);
+                seenCardNameSources.add(action.gainAbilitySource.internalName);
             }
         }
 
@@ -145,7 +151,7 @@ export class Card extends OngoingEffectSource {
 
     /**
      * `SWU 7.3.1`: A constant ability is always in effect while the card it is on is in play. Constant abilities
-     * don’t have any special styling
+     * don’t have any special text styling
      */
     public getConstantAbilities(): IConstantAbility[] {
         return this.constantAbilities;
@@ -243,11 +249,11 @@ export class Card extends OngoingEffectSource {
     }
 
     public createConstantAbility<TSource extends Card = this>(properties: IConstantAbilityProps<TSource>): IConstantAbility {
-        const sourceLocationFilter = properties.sourceLocationFilter || WildcardLocation.AnyArena;
+        const sourceZoneFilter = properties.sourceZoneFilter || WildcardZoneName.AnyArena;
 
         return {
             duration: Duration.Persistent,
-            sourceLocationFilter,
+            sourceZoneFilter,
             ...properties,
             ...this.buildGeneralAbilityProps('constant'),
             uuid: uuidv4()
@@ -318,10 +324,17 @@ export class Card extends OngoingEffectSource {
     }
 
     /**
-     * Returns true if the card is in a location where it can legally be exhausted.
+     * Returns true if the card is in a zone where it can legally be exhausted.
      * The returned type set is equivalent to {@link CardWithExhaustProperty}.
      */
     public canBeExhausted(): this is PlayableOrDeployableCard {
+        return false;
+    }
+
+    /**
+     * Returns true if the card is in a playable card (not deployable) or a token
+     */
+    public isTokenOrPlayable(): this is TokenOrPlayableCard {
         return false;
     }
 
@@ -352,18 +365,15 @@ export class Card extends OngoingEffectSource {
 
     // ******************************************* KEYWORD HELPERS *******************************************
     /** Helper method for {@link Card.keywords} */
-    private getKeywords() {
-        let keywords = [...this.printedKeywords];
-
-        // TODO: this is currently wrong, lost keywords should be able to be re-added by later effects
-        for (const gainedKeyword of this.getOngoingEffectValues(EffectName.GainKeyword)) {
-            keywords.push(gainedKeyword);
+    protected getKeywords() {
+        let keywordInstances = [...this.printedKeywords];
+        const gainKeywordEffects = this.getOngoingEffects().filter((ongoingEffect) => ongoingEffect.type === EffectName.GainKeyword);
+        for (const effect of gainKeywordEffects) {
+            keywordInstances.push(effect.getValue(this));
         }
-        for (const lostKeyword of this.getOngoingEffectValues(EffectName.LoseKeyword)) {
-            keywords = keywords.filter((keyword) => keyword.name === lostKeyword);
-        }
+        keywordInstances = keywordInstances.filter((instance) => !instance.isBlank);
 
-        return keywords;
+        return keywordInstances;
     }
 
     public getKeywordWithCostValues(keywordName: KeywordName): KeywordWithCostValues {
@@ -422,7 +432,6 @@ export class Card extends OngoingEffectSource {
 
     public canTriggerAbilities(context: AbilityContext, ignoredRequirements = []): boolean {
         return (
-            !this.facedown &&
             (ignoredRequirements.includes('triggeringRestrictions') ||
               !this.hasRestriction(AbilityRestriction.TriggerAbilities, context))
         );
@@ -433,88 +442,183 @@ export class Card extends OngoingEffectSource {
     }
 
 
-    // ******************************************* LOCATION MANAGEMENT *******************************************
-    public moveTo(targetLocation: Location) {
-        const originalLocation = this.location;
+    // ******************************************* ZONE MANAGEMENT *******************************************
+    /**
+     * Moves a card to a new zone, optionally resetting the card's controller back to its owner.
+     *
+     * @param targetZone Zone to move to
+     * @param resetController If true (default behavior), sets `card.controller = card.owner` on move. Set to
+     * false for a hypothetical situation where a controlled opponent unit is being moved between zones and
+     * needs to not change hands back to the owner.
+     */
+    public moveTo(targetZone: MoveZoneDestination, resetController = true) {
+        Contract.assertNotNullLike(this._zone, `Attempting to move card ${this.internalName} before initializing zone`);
 
-        if (originalLocation === targetLocation) {
+        const originalZone = this.zoneName;
+        if (originalZone === targetZone) {
             return;
         }
 
-        this.cleanupBeforeMove(targetLocation);
-        const prevLocation = this._location;
-        this._location = targetLocation;
-        this.initializeForCurrentLocation(prevLocation);
+        const prevZone = this.zoneName;
+        this.removeFromCurrentZone();
 
-        this.game.emitEvent(EventName.OnCardMoved, {
+        if (resetController) {
+            this._controller = this.owner;
+        }
+
+        this.addSelfToZone(targetZone);
+
+        this.postMoveSteps(prevZone);
+    }
+
+    protected removeFromCurrentZone() {
+        if (this._zone.name === ZoneName.Base) {
+            Contract.assertTrue(this.isLeader(), `Attempting to move card ${this.internalName} from ${this._zone}`);
+            this._zone.removeLeader();
+        } else {
+            this._zone.removeCard(this);
+        }
+    }
+
+    protected postMoveSteps(movedFromZone: ZoneName) {
+        this.initializeForCurrentZone(movedFromZone);
+
+        this.game.emitEvent(EventName.OnCardMoved, null, {
             card: this,
-            originalLocation: originalLocation,
-            newLocation: targetLocation
+            originalZone: movedFromZone,
+            newZone: this.zoneName
         });
+
+        this.game.registerMovedCard(this);
+    }
+
+    public initializeZone(zone: Zone) {
+        Contract.assertIsNullLike(this._zone, `Attempting to initialize zone for card ${this.internalName} to ${zone.name} but it is already set`);
+
+        this._zone = zone;
+
+        this.initializeForStartZone();
+        this.initializeForCurrentZone(null);
+    }
+
+
+    protected initializeForStartZone(): void {
+        this._controller = this.owner;
+    }
+
+    private addSelfToZone(zoneName: MoveZoneDestination) {
+        switch (zoneName) {
+            case ZoneName.Base:
+                this._zone = this.owner.baseZone;
+                Contract.assertTrue(this.isLeader());
+                this._zone.setLeader(this);
+                break;
+
+            case DeckZoneDestination.DeckBottom:
+            case DeckZoneDestination.DeckTop:
+                this._zone = this.owner.deckZone;
+                Contract.assertTrue(this.isTokenOrPlayable() && !this.isToken());
+                this._zone.addCard(this, zoneName);
+                break;
+
+            case ZoneName.Discard:
+                this._zone = this.owner.discardZone;
+                Contract.assertTrue(this.isTokenOrPlayable() && !this.isToken());
+                this._zone.addCard(this);
+                break;
+
+            case ZoneName.GroundArena:
+                this._zone = this.game.groundArena;
+                Contract.assertTrue(this.canBeInPlay());
+                this._zone.addCard(this);
+                break;
+
+            case ZoneName.Hand:
+                this._zone = this.owner.handZone;
+                Contract.assertTrue(this.isTokenOrPlayable() && !this.isToken());
+                this._zone.addCard(this);
+                break;
+
+            case ZoneName.OutsideTheGame:
+                this._zone = this.owner.outsideTheGameZone;
+                Contract.assertTrue(this.isTokenOrPlayable());
+                this._zone.addCard(this);
+                break;
+
+            case ZoneName.Resource:
+                this._zone = this.controller.resourceZone;
+                Contract.assertTrue(this.isTokenOrPlayable() && !this.isToken());
+                this._zone.addCard(this);
+                break;
+
+            case ZoneName.SpaceArena:
+                this._zone = this.game.spaceArena;
+                Contract.assertTrue(this.canBeInPlay());
+                this._zone.addCard(this);
+                break;
+
+            default:
+                Contract.fail(`Unknown zone enum value: ${zoneName}`);
+        }
     }
 
     /**
-     * Deals with any engine effects of leaving the current location before the move happens
+     * Updates the card's abilities for its current zone after being moved.
+     * Called from {@link Game.resolveGameState} after event resolution.
      */
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    protected cleanupBeforeMove(nextLocation: Location) {}
+    public resolveAbilitiesForNewZone() {}
 
     /**
-     * Deals with the engine effects of entering a new location, making sure all statuses are set with legal values.
+     * Deals with the engine effects of entering a new zone, making sure all statuses are set with legal values.
      * If a card should have a different status on entry (e.g., readied instead of exhausted), call this method first
      * and then update the card state(s) as needed.
      *
      * Subclass methods should override this and call the super method to ensure all statuses are set correctly.
      */
-    protected initializeForCurrentLocation(prevLocation: Location) {
-        switch (this.location) {
-            case Location.SpaceArena:
-            case Location.GroundArena:
-                this.controller = this.owner;
+    protected initializeForCurrentZone(prevZone?: ZoneName) {
+        this.hiddenForOpponent = EnumHelpers.isHidden(this.zoneName, RelativePlayer.Self);
+
+        switch (this.zoneName) {
+            case ZoneName.SpaceArena:
+            case ZoneName.GroundArena:
                 this._facedown = false;
                 this.hiddenForController = false;
-                this.hiddenForOpponent = false;
                 break;
 
-            case Location.Base:
-                this.controller = this.owner;
+            case ZoneName.Base:
                 this._facedown = false;
                 this.hiddenForController = false;
-                this.hiddenForOpponent = false;
                 break;
 
-            case Location.Resource:
-                this.controller = this.owner;
+            case ZoneName.Resource:
                 this._facedown = true;
                 this.hiddenForController = false;
-                this.hiddenForOpponent = true;
                 break;
 
-            case Location.Deck:
-                this.controller = this.owner;
+            case ZoneName.Deck:
                 this._facedown = true;
                 this.hiddenForController = true;
-                this.hiddenForOpponent = true;
                 break;
 
-            case Location.Hand:
-                this.controller = this.owner;
+            case ZoneName.Hand:
                 this._facedown = false;
                 this.hiddenForController = false;
-                this.hiddenForOpponent = true;
                 break;
 
-            case Location.Discard:
-            case Location.RemovedFromGame:
-            case Location.OutsideTheGame:
-                this.controller = this.owner;
+            case ZoneName.Capture:
+                this._facedown = true;
+                this.hiddenForController = false;
+                break;
+
+            case ZoneName.Discard:
+            case ZoneName.OutsideTheGame:
                 this._facedown = false;
                 this.hiddenForController = false;
-                this.hiddenForOpponent = false;
                 break;
 
             default:
-                Contract.fail(`Unknown location enum value: ${this.location}`);
+                Contract.fail(`Unknown zone enum value: ${this.zoneName}`);
         }
     }
 
@@ -551,7 +655,7 @@ export class Card extends OngoingEffectSource {
     }
 
     private buildPropertyDisabledStr(propertyName: string) {
-        return `Attempting to read property '${propertyName}' on '${this.internalName}' but it is in location '${this.location}' where the property does not apply`;
+        return `Attempting to read property '${propertyName}' on '${this.internalName}' but it is in zone '${this.zoneName}' where the property does not apply`;
     }
 
     protected resetLimits() {
@@ -562,19 +666,8 @@ export class Card extends OngoingEffectSource {
         }
     }
 
-    public setDefaultController(player) {
-        this.defaultController = player;
-    }
-
-    public getModifiedController() {
-        if (EnumHelpers.isArena(this.location)) {
-            return this.mostRecentOngoingEffect(EffectName.TakeControl) || this.defaultController;
-        }
-        return this.owner;
-    }
-
     public isResource() {
-        return this.location === Location.Resource;
+        return this.zoneName === ZoneName.Resource;
     }
 
     // TODO: should we break this out into variants for event (Play) vs other (EnterPlay)?
@@ -667,56 +760,6 @@ export class Card extends OngoingEffectSource {
         return total;
     }
 
-    /**
-     * Deals with the engine effects of leaving play, making sure all statuses are removed. Anything which changes
-     * the state of the card should be here. This is also called in some strange corner cases e.g. for upgrades
-     * which aren't actually in play themselves when their parent (which is in play) leaves play.
-     */
-    public leavesPlay() {
-        // TODO: reuse this for capture logic
-        // // Remove any cards underneath from the game
-        // const cardsUnderneath = this.controller.getCardPile(this.uuid).map((a) => a);
-        // if (cardsUnderneath.length > 0) {
-        //     cardsUnderneath.forEach((card) => {
-        //         this.controller.moveCard(card, Location.RemovedFromGame);
-        //     });
-        //     this.game.addMessage(
-        //         '{0} {1} removed from the game due to {2} leaving play',
-        //         cardsUnderneath,
-        //         cardsUnderneath.length === 1 ? 'is' : 'are',
-        //         this
-        //     );
-        // }
-    }
-
-    // TODO: is this actually helpful?
-    // isInPlay(): boolean {
-    //     if (this.isFacedown()) {
-    //         return false;
-    //     }
-    //     if ([CardType.Holding, CardType.Province, CardType.Stronghold].includes(this.type)) {
-    //         return this.isInProvince();
-    //     }
-    //     return this.location === Location.PlayArea;
-    // }
-
-    // TODO CAPTURE: will probably need to leverage or modify the below "child card" methods (see basecard.ts in L5R for reference)
-    // originally these were for managing province cards
-
-    // protected addChildCard(card, location) {
-    //     this.childCards.push(card);
-    //     this.controller.moveCard(card, location);
-    // }
-
-    // protected removeChildCard(card, location) {
-    //     if (!card) {
-    //         return;
-    //     }
-
-    //     this.childCards = this.childCards.filter((a) => a !== card);
-    //     this.controller.moveCard(card, location);
-    // }
-
     // createSnapshot() {
     //     const clone = new Card(this.owner, this.cardData);
 
@@ -726,7 +769,7 @@ export class Card extends OngoingEffectSource {
     //     clone.controller = this.controller;
     //     clone.exhausted = this.exhausted;
     //     // clone.statusTokens = [...this.statusTokens];
-    //     clone.location = this.location;
+    //     clone.zoneName = this.zoneName;
     //     clone.parentCard = this.parentCard;
     //     clone.aspects = [...this.aspects];
     //     // clone.fate = this.fate;
@@ -736,48 +779,55 @@ export class Card extends OngoingEffectSource {
     //     return clone;
     // }
 
-    // getSummary(activePlayer, hideWhenFaceup) {
-    //     let isActivePlayer = activePlayer === this.controller;
-    //     let selectionState = activePlayer.getCardSelectionState(this);
 
-    //     // This is my facedown card, but I'm not allowed to look at it
-    //     // OR This is not my card, and it's either facedown or hidden from me
-    //     if (
-    //         isActivePlayer
-    //             ? this.isFacedown() && this.hideWhenFacedown()
-    //             : this.isFacedown() || hideWhenFaceup || this.hasOngoingEffect(EffectName.HideWhenFaceUp)
-    //     ) {
-    //         let state = {
-    //             controller: this.controller.getShortSummary(),
-    //             menu: isActivePlayer ? this.getMenu() : undefined,
-    //             facedown: true,
-    //             inConflict: this.inConflict,
-    //             location: this.location,
-    //             uuid: isActivePlayer ? this.uuid : undefined
-    //         };
-    //         return Object.assign(state, selectionState);
-    //     }
+    // TODO: Clean this up and review rules for visibility. We can probably reduce this down to arity 1
+    /*
+    * This is the infomation for each card that is sent to the client.
+    */
 
-    //     let state = {
-    //         id: this.cardData.id,
-    //         controlled: this.owner !== this.controller,
-    //         inConflict: this.inConflict,
-    //         facedown: this.isFacedown(),
-    //         location: this.location,
-    //         menu: this.getMenu(),
-    //         name: this.cardData.name,
-    //         popupMenuText: this.popupMenuText,
-    //         showPopup: this.showPopup,
-    //         tokens: this.tokens,
-    //         types: this.types,
-    //         isDishonored: this.isDishonored,
-    //         isHonored: this.isHonored,
-    //         isTainted: !!this.isTainted,
-    //         uuid: this.uuid
-    //     };
+    public getSummary(activePlayer, hideWhenFaceup) {
+        const isActivePlayer = activePlayer === this.controller;
+        const selectionState = activePlayer.getCardSelectionState(this);
 
-    //     return Object.assign(state, selectionState);
-    // }
+        // This is my facedown card, but I'm not allowed to look at it
+        // OR This is not my card, and it's either facedown or hidden from me
+        if (
+            isActivePlayer
+                ? this.facedown
+                : this.facedown || hideWhenFaceup
+        ) {
+            const state = {
+                controller: this.controller.getShortSummary(),
+                // menu: isActivePlayer ? this.getMenu() : undefined,
+                facedown: true,
+                zone: this.zoneName,
+                uuid: isActivePlayer ? this.uuid : undefined
+            };
+            return { ...state, ...selectionState };
+        }
+
+
+        const state = {
+            id: this.cardData.id,
+            setId: this.cardData.setId,
+            controlled: this.owner !== this.controller,
+            // facedown: this.isFacedown(),
+            zone: this.zoneName,
+            // menu: this.getMenu(),
+            name: this.cardData.title,
+            cost: this.cardData.cost,
+            power: this.cardData.power,
+            hp: this.cardData.hp,
+            // popupMenuText: this.popupMenuText,
+            // showPopup: this.showPopup,
+            // tokens: this.tokens,
+            type: this.type,
+            uuid: this.uuid,
+            ...selectionState
+        };
+
+        return state;
+    }
 
     public override getShortSummaryForControls(activePlayer: Player): any {
         if (!this.isHiddenForPlayer(activePlayer)) {

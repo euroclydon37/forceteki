@@ -17,18 +17,20 @@ const deckBuilder = new DeckBuilder();
 
 // TODO: why not just call these directly
 const ProxiedGameFlowWrapperMethods = [
-    'allPlayersInInitiativeOrder',
-    'startGame',
-    'keepStartingHand',
-    'skipSetupPhase',
-    'selectInitiativePlayer',
-    'moveToNextActionPhase',
     'advancePhases',
-    'getPromptedPlayer',
-    'nextPhase',
-    'setDamage',
+    'allPlayersInInitiativeOrder',
+    'getPlayableCardTitles',
+    'getChatLog',
     'getChatLogs',
-    'getChatLog'
+    'getPromptedPlayer',
+    'keepStartingHand',
+    'moveToNextActionPhase',
+    'moveToRegroupPhase',
+    'nextPhase',
+    'selectInitiativePlayer',
+    'setDamage',
+    'skipSetupPhase',
+    'startGame'
 ];
 
 var customMatchers = {
@@ -555,6 +557,31 @@ var customMatchers = {
             }
         };
     },
+    toHavePassSingleTargetPrompt: function () {
+        return {
+            compare: function (player, abilityText, target) {
+                var result = {};
+
+                if (abilityText == null || target == null) {
+                    throw new TestSetupError('toHavePassSingleTargetPrompt requires the target and abilityText parameters');
+                }
+
+                // in certain cases the prompt may have additional text explaining the hidden zone rule
+                const passPromptText = `Trigger the effect '${abilityText}' on target '${target.title}' or pass`;
+                const passPromptTextForHiddenZone = passPromptText + ' (because you are choosing from a hidden zone you may choose nothing)';
+
+                result.pass = player.hasPrompt(passPromptText) || player.hasPrompt(passPromptTextForHiddenZone);
+
+                if (result.pass) {
+                    result.message = `Expected ${player.name} not to have pass prompt '${passPromptText}' but it did.`;
+                } else {
+                    result.message = `Expected ${player.name} to have pass prompt '${passPromptText}' but it has prompt:\n${generatePromptHelpMessage(player)}`;
+                }
+
+                return result;
+            }
+        };
+    },
     toBeInBottomOfDeck: function () {
         return {
             compare: function (card, player, numCards) {
@@ -564,7 +591,7 @@ var customMatchers = {
                 const L = deck.length;
                 result.pass = L >= numCards;
                 if (result.pass) {
-                    result.pass = card.location === 'deck';
+                    result.pass = card.zoneName === 'deck';
                     if (!result.pass) {
                         result.message = `Expected ${card.title} to be in the deck.`;
                     } else {
@@ -599,7 +626,7 @@ var customMatchers = {
                     var notInDeck = [];
                     var notOnBottom = [];
                     for (let card of cards) {
-                        thisCardPass = card.location === 'deck';
+                        thisCardPass = card.zoneName === 'deck';
                         if (!thisCardPass) {
                             result.pass = thisCardPass;
                             notInDeck.push(card.title);
@@ -635,31 +662,62 @@ var customMatchers = {
             }
         };
     },
-    toBeInLocation: function () {
+    toBeInZone: function () {
         return {
-            compare: function (card, location, player = null) {
+            compare: function (card, zone, player = null) {
                 if (typeof card === 'string') {
                     throw new TestSetupError('This expectation requires a card object, not a name');
                 }
+                if (zone === 'capture') {
+                    throw new TestSetupError('Do not use toBeInZone to check for capture zone, use to toBeCapturedBy instead');
+                }
                 let result = {};
 
-                const pileOwningPlayer = player?.player || card.owner;
+                const zoneOwningPlayer = player || card.controller;
 
-                const correctProperty = card.location === location;
-                const correctPile = pileOwningPlayer.getCardPile(location).includes(card);
+                const correctProperty = card.zoneName === zone;
+                const correctPile = zoneOwningPlayer.getCardsInZone(zone).includes(card);
 
                 if (correctProperty !== correctPile) {
                     result.pass = false;
-                    result.message = `Card ${card.internalName} has inconsistent location state, card.location is '${card.location}' but it is not in the corresponding pile for ${pileOwningPlayer.name}'`;
+                    result.message = `Card ${card.internalName} has inconsistent zone state, card.zoneName is '${card.zoneName}' but it is not in the corresponding pile for ${zoneOwningPlayer.name}'`;
                     return result;
                 }
 
                 result.pass = correctProperty && correctPile;
 
                 if (result.pass) {
-                    result.message = `Expected ${card.internalName} not to be in location '${location}' but it is`;
+                    result.message = `Expected ${card.internalName} not to be in zone '${zone}' but it is`;
                 } else {
-                    result.message = `Expected ${card.internalName} to be in location '${location}' but it is in location '${card.location}'`;
+                    result.message = `Expected ${card.internalName} to be in zone '${zone}' but it is in zone '${card.zoneName}'`;
+                }
+
+                return result;
+            }
+        };
+    },
+    toBeCapturedBy: function () {
+        return {
+            compare: function (card, captor) {
+                if (typeof card === 'string' || typeof captor === 'string') {
+                    throw new TestSetupError('This expectation requires a card object, not a name');
+                }
+                let result = {};
+
+                if (card.zoneName !== 'capture') {
+                    result.pass = false;
+                    result.message = `Card ${card.internalName} has inconsistent zone state, card.zoneName is '${card.zoneName}' but it is not in the corresponding capture zone for ${captor.internalName}'`;
+                    return result;
+                }
+
+                const correctPile = captor.captureZone;
+
+                result.pass = captor.captureZone.hasCard(card);
+
+                if (result.pass) {
+                    result.message = `Expected ${card.internalName} not to be captured by ${captor.internalName} but it is`;
+                } else {
+                    result.message = `Expected ${card.internalName} to be captured by ${captor.internalName} but it is in zone '${card.zone}'`;
                 }
 
                 return result;
@@ -753,6 +811,36 @@ function generatePromptHelpMessage(player) {
     return `Current prompt for ${player.name}:\n${formatPrompt(player.currentPrompt(), player.currentActionTargets)}`;
 }
 
+function validatePlayerOptions(playerOptions, playerName, startPhase) {
+    // list of approved property names
+    const noneSetupPhase = [
+        'hasInitiative',
+        'resources',
+        'groundArena',
+        'spaceArena',
+        'hand',
+        'discard',
+        'leader',
+        'base',
+        'deck',
+        'resource',
+    ];
+    // list of approved property names for setup phase
+    const setupPhase = [
+        'leader',
+        'deck'
+    ];
+
+    // Check for unknown properties
+    for (const prop of Object.keys(playerOptions)) {
+        if (!noneSetupPhase.includes(prop) && startPhase !== 'setup') {
+            throw new Error(`${playerName} has an unknown property '${prop}'`);
+        } else if (!setupPhase.includes(prop) && startPhase === 'setup') {
+            throw new Error(`${playerName} has an unknown property '${prop}'`);
+        }
+    }
+}
+
 beforeEach(function () {
     jasmine.addMatchers(customMatchers);
 });
@@ -798,6 +886,11 @@ global.integration = function (definitions) {
                 if (!options.player2) {
                     options.player2 = {};
                 }
+
+                // validate supplied parameters
+                validatePlayerOptions(options.player1, 'player1', options.phase);
+                validatePlayerOptions(options.player2, 'player2', options.phase);
+
                 this.game.gameMode = GameMode.Premier;
 
                 if (options.player1.hasInitiative) {
@@ -807,8 +900,8 @@ global.integration = function (definitions) {
                 }
 
                 // pass decklists to players. they are initialized into real card objects in the startGame() call
-                const [deck1, namedCards1] = deckBuilder.customDeck(1, options.player1);
-                const [deck2, namedCards2] = deckBuilder.customDeck(2, options.player2);
+                const [deck1, namedCards1] = deckBuilder.customDeck(1, options.player1, options.phase);
+                const [deck2, namedCards2] = deckBuilder.customDeck(2, options.player2, options.phase);
 
                 this.player1.selectDeck(deck1);
                 this.player2.selectDeck(deck2);
@@ -825,43 +918,46 @@ global.integration = function (definitions) {
 
                     // Advance the phases to the specified
                     this.advancePhases(options.phase);
+                } else {
+                    // Set action window prompt
+                    this.player1.player.promptedActionWindows['action'] = true;
+                    this.player2.player.promptedActionWindows['action'] = true;
                 }
-
-                // Player stats
-                this.player1.damageToBase = options.player1.damageToBase ?? 0;
-                this.player2.damageToBase = options.player2.damageToBase ?? 0;
 
                 // return all zone cards to deck and then set them below
                 this.player1.moveAllNonBaseZonesToRemoved();
                 this.player2.moveAllNonBaseZonesToRemoved();
 
-                // Resources
-                this.player1.setResourceCards(options.player1.resources, ['removed from game']);
-                this.player2.setResourceCards(options.player2.resources, ['removed from game']);
 
-                // Arenas
-                this.player1.setGroundArenaUnits(options.player1.groundArena, ['removed from game']);
-                this.player2.setGroundArenaUnits(options.player2.groundArena, ['removed from game']);
-                this.player1.setSpaceArenaUnits(options.player1.spaceArena, ['removed from game']);
-                this.player2.setSpaceArenaUnits(options.player2.spaceArena, ['removed from game']);
+                if (options.phase !== 'setup') {
+                    // Resources
+                    this.player1.setResourceCards(options.player1.resources, ['outsideTheGame']);
+                    this.player2.setResourceCards(options.player2.resources, ['outsideTheGame']);
 
-                // Hand + discard
-                this.player1.setHand(options.player1.hand, ['removed from game']);
-                this.player2.setHand(options.player2.hand, ['removed from game']);
-                this.player1.setDiscard(options.player1.discard, ['removed from game']);
-                this.player2.setDiscard(options.player2.discard, ['removed from game']);
+                    // Arenas
+                    this.player1.setGroundArenaUnits(options.player1.groundArena, ['outsideTheGame']);
+                    this.player2.setGroundArenaUnits(options.player2.groundArena, ['outsideTheGame']);
+                    this.player1.setSpaceArenaUnits(options.player1.spaceArena, ['outsideTheGame']);
+                    this.player2.setSpaceArenaUnits(options.player2.spaceArena, ['outsideTheGame']);
 
-                // Set Leader state (deployed, exhausted, etc.)
-                this.player1.setLeaderStatus(options.player1.leader);
-                this.player2.setLeaderStatus(options.player2.leader);
+                    // Hand + discard
+                    this.player1.setHand(options.player1.hand, ['outsideTheGame']);
+                    this.player2.setHand(options.player2.hand, ['outsideTheGame']);
+                    this.player1.setDiscard(options.player1.discard, ['outsideTheGame']);
+                    this.player2.setDiscard(options.player2.discard, ['outsideTheGame']);
+
+                    // Set Leader state (deployed, exhausted, etc.)
+                    this.player1.setLeaderStatus(options.player1.leader);
+                    this.player2.setLeaderStatus(options.player2.leader);
+                }
 
                 // Set Base damage
                 this.player1.setBaseStatus(options.player1.base);
                 this.player2.setBaseStatus(options.player2.base);
 
                 // Deck
-                this.player1.setDeck(options.player1.deck, ['removed from game']);
-                this.player2.setDeck(options.player2.deck, ['removed from game']);
+                this.player1.setDeck(options.player1.deck, ['outsideTheGame']);
+                this.player2.setDeck(options.player2.deck, ['outsideTheGame']);
 
                 // add named cards to this for easy reference (allows us to do "this.<cardName>")
                 // note that if cards map to the same property name (i.e., same title), then they won't be added

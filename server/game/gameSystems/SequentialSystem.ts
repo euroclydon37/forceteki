@@ -1,15 +1,15 @@
 import { AbilityContext } from '../core/ability/AbilityContext';
+import { MetaEventName } from '../core/Constants';
 import { GameEvent } from '../core/event/GameEvent';
 import { GameObject } from '../core/GameObject';
 import { GameSystem, IGameSystemProperties } from '../core/gameSystem/GameSystem';
-import { MetaSystem } from '../core/gameSystem/MetaSystem';
+import { AggregateSystem, ISystemArrayOrFactory } from '../core/gameSystem/AggregateSystem';
 
 
 export interface ISequentialSystemProperties<TContext extends AbilityContext = AbilityContext> extends IGameSystemProperties {
     gameSystems: GameSystem<TContext>[];
 }
 
-// TODO: fix windows and trigger timing in general
 // TODO: add a variant of this (or a configuration option) for repeating the same action a variable number of times
 /**
  * Meta-system used for executing a set of other systems in a sequence. Each sub-system will be executed in order,
@@ -18,9 +18,14 @@ export interface ISequentialSystemProperties<TContext extends AbilityContext = A
  *
  * In terms of game text, this is the exact behavior of "do [X], then do [Y], then do..." or "do [X] [N] times"
  */
-export class SequentialSystem<TContext extends AbilityContext = AbilityContext> extends MetaSystem<TContext, ISequentialSystemProperties<TContext>> {
-    public constructor(gameSystems: (GameSystem<TContext>)[]) {
-        super({ gameSystems });
+export class SequentialSystem<TContext extends AbilityContext = AbilityContext> extends AggregateSystem<TContext, ISequentialSystemProperties<TContext>> {
+    protected override readonly eventName: MetaEventName.Sequential;
+    public constructor(gameSystems: ISystemArrayOrFactory<TContext>) {
+        if (typeof gameSystems === 'function') {
+            super((context: TContext) => ({ gameSystems: gameSystems(context) }));
+        } else {
+            super({ gameSystems });
+        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -34,7 +39,6 @@ export class SequentialSystem<TContext extends AbilityContext = AbilityContext> 
                     const eventsForThisAction = [];
                     gameSystem.queueGenerateEventGameSteps(eventsForThisAction, context, additionalProperties);
                     context.game.queueSimpleStep(() => {
-                        // TODO WINDOWS: this currently will not handle on defeat events correctly since all events are being emitted at the end of the sequential actions
                         for (const event of eventsForThisAction) {
                             events.push(event);
                         }

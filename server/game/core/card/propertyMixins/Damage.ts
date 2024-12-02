@@ -1,9 +1,11 @@
 import { Attack } from '../../attack/Attack';
 import * as Contract from '../../utils/Contract';
 import { Card, CardConstructor } from '../Card';
+import { ZoneName } from '../../Constants';
+import type Player from '../../Player';
 import type { CardWithDamageProperty } from '../CardTypes';
 import { WithPrintedHp } from './PrintedHp';
-import { INonFrameworkDamageOrDefeatSource } from '../../../IDamageOrDefeatSource';
+import { IDamageSource } from '../../../IDamageOrDefeatSource';
 
 /**
  * Mixin function that adds the `damage` property and corresponding methods to a base class.
@@ -58,8 +60,11 @@ export function WithDamage<TBaseClass extends CardConstructor>(BaseClass: TBaseC
             return true;
         }
 
-        /** @param source Metadata about the source of the damage (attack or ability) */
-        public addDamage(amount: number, source: INonFrameworkDamageOrDefeatSource) {
+        /**
+         * @param source Metadata about the source of the damage (attack or ability)
+         * @returns The amount of damage actually added, anything else is excess damage
+         */
+        public addDamage(amount: number, source: IDamageSource): number {
             Contract.assertNonNegative(amount);
 
             // damage source is only needed for tracking cause of defeat on units but we should enforce that it's provided consistently
@@ -68,28 +73,36 @@ export function WithDamage<TBaseClass extends CardConstructor>(BaseClass: TBaseC
             this.assertPropertyEnabled(this._damage, 'damage');
 
             if (amount === 0) {
-                return;
+                return 0;
             }
 
-            // damage is added here, and checks for effects such as defeat or game win are handled either in a subclass or in Game.resolveGameState
-            this.damage += amount;
+            const damageToAdd = Math.min(amount, this.remainingHp);
+            this.damage += damageToAdd;
+
+            return damageToAdd;
         }
 
-        /** @returns True if any damage was healed, false otherwise */
-        public removeDamage(amount: number): boolean {
+        /** @returns The amount of damage actually removed */
+        public removeDamage(amount: number): number {
             Contract.assertNonNegative(amount);
             this.assertPropertyEnabled(this._damage, 'damage');
 
             if (amount === 0 || this.damage === 0) {
-                return false;
+                return 0;
             }
 
-            this.damage -= Math.min(amount, this.damage);
-            return true;
+            const damageToRemove = Math.min(amount, this.damage);
+            this.damage -= damageToRemove;
+
+            return damageToRemove;
         }
 
         protected setDamageEnabled(enabledStatus: boolean) {
             this._damage = enabledStatus ? 0 : null;
+        }
+
+        public override getSummary(activePlayer: Player, hideWhenFaceup: boolean) {
+            return { ...super.getSummary(activePlayer, hideWhenFaceup), damage: this._damage };
         }
 
         protected setActiveAttackEnabled(enabledStatus: boolean) {
@@ -98,7 +111,7 @@ export function WithDamage<TBaseClass extends CardConstructor>(BaseClass: TBaseC
                     this.unsetActiveAttack();
                 }
             } else {
-                Contract.assertIsNullLike(this._activeAttack, `Moved ${this.internalName} to ${this.location} but it has an active attack set`);
+                Contract.assertIsNullLike(this._activeAttack, `Moved ${this.internalName} to ${this.zoneName} but it has an active attack set`);
             }
 
             this.attackEnabled = enabledStatus;

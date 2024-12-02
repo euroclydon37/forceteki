@@ -4,6 +4,7 @@ const Game = require('../../server/game/core/Game.js');
 const PlayerInteractionWrapper = require('./PlayerInteractionWrapper.js');
 const Settings = require('../../server/Settings.js');
 const TestSetupError = require('./TestSetupError.js');
+const playableCardTitles = require('../json/_playableCardTitles.json');
 
 class GameFlowWrapper {
     constructor() {
@@ -19,7 +20,8 @@ class GameFlowWrapper {
             players: [
                 { id: '111', user: Settings.getUserWithDefaultsSet({ username: 'player1' }) },
                 { id: '222', user: Settings.getUserWithDefaultsSet({ username: 'player2' }) }
-            ]
+            ],
+            playableCardTitles: this.getPlayableCardTitles()
         };
         this.game = new Game(details, { router: gameRouter });
         this.game.started = true;
@@ -29,6 +31,10 @@ class GameFlowWrapper {
         // this.player1.player.timerSettings.events = false;
         // this.player2.player.timerSettings.events = false;
         this.allPlayers = [this.player1, this.player2];
+    }
+
+    getPlayableCardTitles() {
+        return playableCardTitles;
     }
 
     allPlayersInInitiativeOrder() {
@@ -55,7 +61,11 @@ class GameFlowWrapper {
      */
     resourceAnyTwo() {
         this.guardCurrentPhase('setup');
-        this.allPlayersInInitiativeOrder().forEach((player) => player.clickAnyOfSelectableCards(2));
+        for (const player of this.allPlayersInInitiativeOrder()) {
+            player.clickAnyOfSelectableCards(2);
+            player.clickPrompt('Done');
+        }
+
         this.game.continue();
     }
 
@@ -96,14 +106,14 @@ class GameFlowWrapper {
     /**
      * Pass any remaining player actions
      */
-    finishActionPhase() {
+    moveToRegroupPhase() {
         this.guardCurrentPhase('action');
         this.noMoreActions();
         this.guardCurrentPhase('regroup');
     }
 
     moveToNextActionPhase() {
-        this.finishActionPhase();
+        this.moveToRegroupPhase();
         this.skipRegroupPhase();
     }
 
@@ -130,7 +140,7 @@ class GameFlowWrapper {
                 this.skipSetupPhase();
                 break;
             case 'action':
-                this.finishActionPhase();
+                this.moveToRegroupPhase();
                 phaseChange = -1;
                 break;
             case 'regroup':

@@ -2,7 +2,7 @@ const { BaseStepWithPipeline } = require('./BaseStepWithPipeline.js');
 const { SimpleStep } = require('./SimpleStep.js');
 const InitiateCardAbilityEvent = require('../event/InitiateCardAbilityEvent.js');
 const InitiateAbilityEventWindow = require('./abilityWindow/InitiateAbilityEventWindow.js');
-const { Location, Stage, CardType, EventName, AbilityType } = require('../Constants.js');
+const { ZoneName, Stage, CardType, EventName, AbilityType } = require('../Constants.js');
 const { GameEvent } = require('../event/GameEvent.js');
 const Contract = require('../utils/Contract.js');
 
@@ -65,22 +65,18 @@ class AbilityResolver extends BaseStepWithPipeline {
             return;
         }
         let eventName = EventName.OnAbilityResolverInitiated;
-        let eventProps = {
-            context: this.context
-        };
+        let eventProps = {};
         if (this.context.ability.isCardAbility()) {
             eventName = EventName.OnCardAbilityInitiated;
             eventProps = {
                 card: this.context.source,
-                ability: this.context.ability,
-                context: this.context
+                ability: this.context.ability
             };
             if (this.context.ability.isCardPlayed()) {
-                this.events.push(new GameEvent(EventName.OnCardPlayed, {
+                this.events.push(new GameEvent(EventName.OnCardPlayed, this.context, {
                     player: this.context.player,
                     card: this.context.source,
-                    context: this.context,
-                    originalLocation: this.context.source.location,
+                    originalZone: this.context.source.zoneName,
                     originallyOnTopOfDeck:
                         this.context.player && this.context.player.drawDeck && this.context.player.drawDeck[0] === this.context.source,
                     onPlayCardSource: this.context.onPlayCardSource,
@@ -89,15 +85,14 @@ class AbilityResolver extends BaseStepWithPipeline {
                 }));
             }
             if (this.context.ability.isActivatedAbility()) {
-                this.events.push(new GameEvent(EventName.OnCardAbilityTriggered, {
+                this.events.push(new GameEvent(EventName.OnCardAbilityTriggered, this.context, {
                     player: this.context.player,
-                    card: this.context.source,
-                    context: this.context
+                    card: this.context.source
                 }));
             }
         }
-        this.events.push(new GameEvent(eventName, eventProps, () => this.queueInitiateAbilitySteps()));
-        this.game.queueStep(new InitiateAbilityEventWindow(this.game, this.events, this.context.ability.resolveTriggersAfter));
+        this.events.push(new GameEvent(eventName, this.context, eventProps, () => this.queueInitiateAbilitySteps()));
+        this.game.queueStep(new InitiateAbilityEventWindow(this.game, this.events, this.context.ability.triggerHandlingMode));
     }
 
     queueInitiateAbilitySteps() {
@@ -138,7 +133,7 @@ class AbilityResolver extends BaseStepWithPipeline {
             return;
         }
 
-        this.cancelled = this.targetResults.cancelled;
+        this.checkTargetResultCancelState();
     }
 
     checkForCancelOrPass() {
@@ -146,12 +141,25 @@ class AbilityResolver extends BaseStepWithPipeline {
             return;
         }
 
-        if (this.passAbilityHandler && !this.passAbilityHandler.hasBeenShown) {
+        this.checkTargetResultCancelState();
+
+        if (!this.cancelled && this.passAbilityHandler && !this.passAbilityHandler.hasBeenShown) {
             this.game.queueSimpleStep(() => this.checkForPass(), 'checkForPass');
             return;
         }
+    }
 
+    checkTargetResultCancelState() {
         this.cancelled = this.targetResults.cancelled;
+
+        if (
+            !this.cancelled &&
+            this.targetResults.hasEffectiveTargets === false &&
+            (!this.context.ability.cost || this.context.ability.cost?.length === 0)
+        ) {
+            this.cancelled = true;
+            this.resolutionComplete = true;
+        }
     }
 
     // TODO: add passHandler support here
@@ -215,7 +223,7 @@ class AbilityResolver extends BaseStepWithPipeline {
         if (this.cancelled) {
             return;
         }
-        this.cancelled = this.costResults.events.some((event) => event.getResolutionEvent().cancelled);
+        this.cancelled = this.costResults.events.some((event) => event.isCancelled);
         if (this.cancelled) {
             this.game.addMessage('{0} attempted to use {1}, but did not successfully pay the required costs', this.context.player, this.context.source);
         }
@@ -249,20 +257,14 @@ class AbilityResolver extends BaseStepWithPipeline {
         }
 
         // Increment limits (limits aren't used up on cards in hand)
-        if (this.context.ability.limit && this.context.source.location !== Location.Hand &&
-          (!this.context.cardStateWhenInitiated || this.context.cardStateWhenInitiated.location === this.context.source.location)) {
+        if (this.context.ability.limit && this.context.source.zoneName !== ZoneName.Hand &&
+          (!this.context.cardStateWhenInitiated || this.context.cardStateWhenInitiated.zoneName === this.context.source.zoneName)) {
             this.context.ability.limit.increment(this.context.player);
         }
         this.context.ability.displayMessage(this.context);
 
-        // If this is an event, move it to discard before resolving the ability
-        if (this.context.ability.isCardPlayed() && this.context.ability.card.isEvent()) {
-            Contract.assertHasProperty(this.context.ability, 'moveEventToDiscard');
-            this.context.ability.moveEventToDiscard(this.context);
-        }
-
         if (this.context.ability.isActivatedAbility()) {
-            this.game.openEventWindow(new InitiateCardAbilityEvent({ card: this.context.source, context: this.context }, () => this.initiateAbility = true));
+            this.game.openEventWindow(new InitiateCardAbilityEvent(this.context, { card: this.context.source }, () => this.initiateAbility = true));
         } else {
             this.initiateAbility = true;
         }

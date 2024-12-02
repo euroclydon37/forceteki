@@ -1,7 +1,8 @@
 import { AbilityContext } from '../core/ability/AbilityContext';
+import { GameStateChangeRequired, MetaEventName } from '../core/Constants';
 import { GameObject } from '../core/GameObject';
 import { GameSystem, IGameSystemProperties } from '../core/gameSystem/GameSystem';
-import { MetaSystem } from '../core/gameSystem/MetaSystem';
+import { AggregateSystem, ISystemArrayOrFactory } from '../core/gameSystem/AggregateSystem';
 
 export interface ISimultaneousSystemProperties<TContext extends AbilityContext = AbilityContext> extends IGameSystemProperties {
     gameSystems: GameSystem<TContext>[];
@@ -13,14 +14,15 @@ export interface ISimultaneousSystemProperties<TContext extends AbilityContext =
     ignoreTargetingRequirements?: boolean;
 }
 
-export class SimultaneousGameSystem<TContext extends AbilityContext = AbilityContext> extends MetaSystem<TContext, ISimultaneousSystemProperties<TContext>> {
-    protected override readonly defaultProperties: ISimultaneousSystemProperties<TContext> = {
-        gameSystems: null,
-        ignoreTargetingRequirements: false
-    };
+export class SimultaneousGameSystem<TContext extends AbilityContext = AbilityContext> extends AggregateSystem<TContext, ISimultaneousSystemProperties<TContext>> {
+    protected override readonly eventName: MetaEventName.Simultaneous;
 
-    public constructor(gameSystems: (GameSystem<TContext>)[], ignoreTargetingRequirements = null) {
-        super({ gameSystems, ignoreTargetingRequirements });
+    public constructor(gameSystems: ISystemArrayOrFactory<TContext>, ignoreTargetingRequirements = false) {
+        if (typeof gameSystems === 'function') {
+            super((context: TContext) => ({ gameSystems: gameSystems(context), ignoreTargetingRequirements }));
+        } else {
+            super({ gameSystems, ignoreTargetingRequirements });
+        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -46,9 +48,9 @@ export class SimultaneousGameSystem<TContext extends AbilityContext = AbilityCon
         return properties.gameSystems.some((gameSystem) => gameSystem.hasLegalTarget(context, additionalProperties));
     }
 
-    public override canAffect(target: GameObject, context: TContext, additionalProperties = {}): boolean {
+    public override canAffect(target: GameObject, context: TContext, additionalProperties: any = {}, mustChangeGameState = GameStateChangeRequired.None): boolean {
         const properties = this.generatePropertiesFromContext(context, additionalProperties);
-        return properties.gameSystems.some((gameSystem) => gameSystem.canAffect(target, context, additionalProperties));
+        return properties.gameSystems.some((gameSystem) => gameSystem.canAffect(target, context, additionalProperties, mustChangeGameState));
     }
 
     public override allTargetsLegal(context: TContext, additionalProperties = {}): boolean {

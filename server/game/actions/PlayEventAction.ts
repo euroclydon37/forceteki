@@ -1,14 +1,11 @@
-import { AbilityRestriction, EventName, Location, PlayType } from '../core/Constants.js';
-import { Card } from '../core/card/Card';
+import { AbilityRestriction, EventName, ZoneName, PlayType } from '../core/Constants.js';
 import * as Contract from '../core/utils/Contract.js';
-import { PlayCardContext, PlayCardAction } from '../core/ability/PlayCardAction.js';
-import { AbilityContext } from '../core/ability/AbilityContext.js';
-import { MoveCardSystem } from '../gameSystems/MoveCardSystem.js';
+import { PlayCardContext, PlayCardAction, IPlayCardActionProperties } from '../core/ability/PlayCardAction.js';
 import { GameEvent } from '../core/event/GameEvent.js';
 
 export class PlayEventAction extends PlayCardAction {
-    public constructor(card: Card, playType: PlayType = PlayType.PlayFromHand) {
-        super(card, 'Play this event', playType);
+    public constructor(properties: IPlayCardActionProperties) {
+        super({ ...properties, title: 'Play this event' });
     }
 
     public override executeHandler(context: PlayCardContext): void {
@@ -20,7 +17,7 @@ export class PlayEventAction extends PlayCardAction {
             context.source,
         );
 
-        // TODO: move the logic for moving the event card to discard pile from AbilityResolver to here
+        this.moveEventToDiscard(context);
         context.game.resolveAbility(context.source.getEventAbility().createContext());
     }
 
@@ -35,20 +32,19 @@ export class PlayEventAction extends PlayCardAction {
     }
 
     public moveEventToDiscard(context: PlayCardContext) {
-        const moveCardEvent = new MoveCardSystem({ destination: Location.Discard }).generateEvent(context.source, context);
-        const cardPlayedEvent = new GameEvent(EventName.OnCardPlayed, {
+        const cardPlayedEvent = new GameEvent(EventName.OnCardPlayed, context, {
             player: context.player,
             card: context.source,
-            context: context,
-            originalLocation: context.source.location,
+            originalZone: context.source.zoneName,
             originallyOnTopOfDeck:
                 context.player && context.player.drawDeck && context.player.drawDeck[0] === context.source,
             playType: context.playType,
             onPlayCardSource: context.onPlayCardSource,
-            resolver: this
+            resolver: this,
+            handler: () => context.source.moveTo(ZoneName.Discard)
         });
 
-        const events = [moveCardEvent, cardPlayedEvent];
+        const events = [cardPlayedEvent];
 
         if (context.playType === PlayType.Smuggle) {
             events.push(this.generateSmuggleEvent(context));

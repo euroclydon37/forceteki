@@ -1,11 +1,13 @@
 import { GameSystem } from '../core/gameSystem/GameSystem';
 import { AbilityContext } from '../core/ability/AbilityContext';
+import { ZoneName, DeckZoneDestination, PlayType } from '../core/Constants';
 
 // import { AddTokenAction, AddTokenProperties } from './AddTokenAction';
 import { AttachUpgradeSystem, IAttachUpgradeProperties } from './AttachUpgradeSystem';
+import { CaptureSystem, ICaptureProperties } from './CaptureSystem';
 import { CardLastingEffectSystem, ICardLastingEffectProperties } from './CardLastingEffectSystem';
 import { CardPhaseLastingEffectSystem, ICardPhaseLastingEffectProperties } from './CardPhaseLastingEffectSystem';
-import { CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
+import { CardTargetSystem, ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
 import { ConditionalSystem, IConditionalSystemProperties } from './ConditionalSystem';
 import { DamageSystem, IDamageProperties } from './DamageSystem';
 import { DeployLeaderSystem, IDeployLeaderProperties } from './DeployLeaderSystem';
@@ -18,9 +20,10 @@ import { DistributeHealingSystem, IDistributeHealingSystemProperties } from './D
 // import { ChosenReturnToDeckAction, ChosenReturnToDeckProperties } from './ChosenReturnToDeckAction';
 // import { CreateTokenAction, CreateTokenProperties } from './CreateTokenAction';
 // import { DetachAction, DetachActionProperties } from './DetachAction';
-// import { DiscardCardAction, DiscardCardProperties } from './DiscardCardAction';
+// import { DiscardCardAction, DiscardCardProperties } from './DiscardSpecificCardAction';
 // import { DiscardFromPlayAction, DiscardFromPlayProperties } from './DiscardFromPlayAction';
 // import { DiscardStatusAction, DiscardStatusProperties } from './DiscardStatusAction';
+import { DiscardSpecificCardSystem, IDiscardSpecificCardProperties } from './DiscardSpecificCardSystem';
 import { DrawSystem, IDrawProperties } from './DrawSystem';
 import { DrawSpecificCardSystem, IDrawSpecificCardProperties } from './DrawSpecificCardSystem';
 import { ExhaustSystem, IExhaustSystemProperties } from './ExhaustSystem';
@@ -44,7 +47,7 @@ import { MoveCardSystem, IMoveCardProperties } from './MoveCardSystem';
 import { NoActionSystem, INoActionSystemProperties } from './NoActionSystem';
 // import { OpponentPutIntoPlayAction, OpponentPutIntoPlayProperties } from './OpponentPutIntoPlayAction';
 // import { PlaceCardUnderneathAction, PlaceCardUnderneathProperties } from './PlaceCardUnderneathAction';
-// import { PlayCardAction, PlayCardProperties } from './PlayCardAction';
+import { PlayCardSystem, IPlayCardProperties } from '../gameSystems/PlayCardSystem';
 import { PlayerTargetSystem } from '../core/gameSystem/PlayerTargetSystem';
 import { PutIntoPlaySystem, IPutIntoPlayProperties } from './PutIntoPlaySystem';
 import { ReadySystem, IReadySystemProperties } from './ReadySystem';
@@ -54,10 +57,8 @@ import { ReplacementEffectSystem, IReplacementEffectSystemProperties } from './R
 import { ResourceCardSystem, IResourceCardProperties } from './ResourceCardSystem';
 // import { ResolveAbilityAction, ResolveAbilityProperties } from './ResolveAbilityAction';
 // import { ReturnToDeckSystem, IReturnToDeckProperties } from './ReturnToDeckSystem';
-import { ReturnToHandSystem, IReturnToHandProperties } from './ReturnToHandSystem';
-import { ReturnToHandFromPlaySystem, IReturnToHandFromPlayProperties } from './ReturnToHandFromPlaySystem';
 import { RevealSystem, IRevealProperties } from './RevealSystem';
-import { PayResourceCostSystem, IPayResourceCostProperties } from './PayResourceCostSystem';
+import { ExhaustResourcesSystem, IExhaustResourcesProperties } from './ExhaustResourcesSystem';
 import { SearchDeckSystem, ISearchDeckProperties } from './SearchDeckSystem';
 import { SelectCardSystem, ISelectCardProperties } from './SelectCardSystem';
 // import { SelectTokenAction, SelectTokenProperties } from './SelectTokenAction';
@@ -68,6 +69,15 @@ import { SimultaneousGameSystem } from './SimultaneousSystem';
 import { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
 import { IPlayerLastingEffectProperties, PlayerLastingEffectSystem } from './PlayerLastingEffectSystem';
 import { IPlayerPhaseLastingEffectProperties, PlayerPhaseLastingEffectSystem } from './PlayerPhaseLastingEffectSystem';
+import { ILookMoveDeckCardsTopOrBottomProperties, LookMoveDeckCardsTopOrBottomSystem } from './LookMoveDeckCardsTopOrBottomSystem';
+import { DiscardFromDeckSystem, IDiscardFromDeckProperties } from './DiscardFromDeckSystem';
+import { DiscardCardsFromHandSystem, IDiscardCardsFromHandProperties } from './DiscardCardsFromHandSystem';
+import { DiscardEntireHandSystem, IDiscardEntireHandSystemProperties } from './DiscardEntireHandSystem';
+import { AggregateSystem, ISystemArrayOrFactory } from '../core/gameSystem/AggregateSystem';
+import { CardAttackLastingEffectSystem, ICardAttackLastingEffectProperties } from './CardAttackLastingEffectSystem';
+import { IRescueProperties, RescueSystem } from './RescueSystem';
+import { ITakeControlProperties, TakeControlOfUnitSystem } from './TakeControlOfUnitSystem';
+import { ChooseModalEffectsSystem, IPlayModalCardProperties } from './ChooseModalEffectsSystem';
 // import { TakeControlAction, TakeControlProperties } from './TakeControlAction';
 // import { TriggerAbilityAction, TriggerAbilityProperties } from './TriggerAbilityAction';
 // import { TurnCardFacedownAction, TurnCardFacedownProperties } from './TurnCardFacedownAction';
@@ -89,6 +99,9 @@ export function attachUpgrade<TContext extends AbilityContext = AbilityContext>(
 export function attack<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IInitiateAttackProperties, TContext> = {}): CardTargetSystem<TContext> {
     return new InitiateAttackSystem<TContext>(propertyFactory);
 }
+export function capture<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICaptureProperties, TContext> = {}): GameSystem<TContext> {
+    return new CaptureSystem<TContext>(propertyFactory);
+}
 export function cardLastingEffect<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICardLastingEffectProperties, TContext>): GameSystem<TContext> {
     return new CardLastingEffectSystem<TContext>(propertyFactory);
 }
@@ -96,7 +109,7 @@ export function cardLastingEffect<TContext extends AbilityContext = AbilityConte
 //     return new CreateTokenAction(propertyFactory);
 // }
 export function damage<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDamageProperties, TContext>) {
-    return new DamageSystem<TContext>(propertyFactory);
+    return new DamageSystem<TContext, IDamageProperties>(propertyFactory);
 }
 export function distributeDamageAmong<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDistributeDamageSystemProperties, TContext>) {
     return new DistributeDamageSystem<TContext>(propertyFactory);
@@ -113,9 +126,12 @@ export function deploy<TContext extends AbilityContext = AbilityContext>(propert
 export function defeat<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDefeatCardProperties, TContext> = {}): CardTargetSystem<TContext> {
     return new DefeatCardSystem<TContext>(propertyFactory);
 }
-// export function discardCard(propertyFactory: PropsFactory<DiscardCardProperties> = {}): CardGameAction {
-//     return new DiscardCardAction(propertyFactory);
-// }
+export function discardFromDeck<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDiscardFromDeckProperties, TContext> = {}): PlayerTargetSystem<TContext> {
+    return new DiscardFromDeckSystem<TContext>(propertyFactory);
+}
+export function discardSpecificCard<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDiscardSpecificCardProperties, TContext> = {}): DiscardSpecificCardSystem<TContext> {
+    return new DiscardSpecificCardSystem<TContext>(propertyFactory);
+}
 // export function discardFromPlay(propertyFactory: PropsFactory<DiscardFromPlayProperties> = {}): GameSystem {
 //     return new DiscardFromPlayAction(propertyFactory);
 // }
@@ -125,19 +141,25 @@ export function exhaust<TContext extends AbilityContext = AbilityContext>(proper
 export function forThisPhaseCardEffect<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICardPhaseLastingEffectProperties, TContext>) {
     return new CardPhaseLastingEffectSystem<TContext>(propertyFactory);
 }
+export function forThisAttackCardEffect<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICardAttackLastingEffectProperties, TContext>) {
+    return new CardAttackLastingEffectSystem<TContext>(propertyFactory);
+}
 export function giveExperience<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IGiveExperienceProperties, TContext> = {}): CardTargetSystem<TContext> {
     return new GiveExperienceSystem<TContext>(propertyFactory);
 }
 export function giveShield<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IGiveShieldProperties, TContext> = {}): CardTargetSystem<TContext> {
     return new GiveShieldSystem<TContext>(propertyFactory);
 }
-export function heal<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IHealProperties, TContext>): GameSystem<TContext> {
+export function heal<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IHealProperties, TContext>) {
     return new HealSystem<TContext>(propertyFactory);
 }
 export function lookAt<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ILookAtProperties, TContext> = {}): GameSystem<TContext> {
     return new LookAtSystem<TContext>(propertyFactory);
 }
 
+export function lookMoveDeckCardsTopOrBottom<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ILookMoveDeckCardsTopOrBottomProperties, TContext>): CardTargetSystem<TContext> {
+    return new LookMoveDeckCardsTopOrBottomSystem<TContext>(propertyFactory);
+}
 /**
  * default switch = false
  * default shuffle = false
@@ -146,14 +168,61 @@ export function lookAt<TContext extends AbilityContext = AbilityContext>(propert
 export function moveCard<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IMoveCardProperties, TContext>): CardTargetSystem<TContext> {
     return new MoveCardSystem<TContext>(propertyFactory);
 }
-// /**
-//  * default resetOnCancel = false
-//  */
-// export function playCard(propertyFactory: PropsFactory<PlayCardProperties> = {}): GameSystem {
-//     return new PlayCardAction(propertyFactory);
-// }
-export function payResourceCost<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IPayResourceCostProperties, TContext>): GameSystem<TContext> {
-    return new PayResourceCostSystem<TContext>(propertyFactory);
+
+export function moveToBottomOfDeck<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IMoveCardProperties, TContext> = {}): CardTargetSystem<TContext> {
+    return new MoveCardSystem<TContext>(
+        GameSystem.appendToPropertiesOrPropertyFactory<IMoveCardProperties, 'destination'>(
+            propertyFactory,
+            { destination: DeckZoneDestination.DeckBottom }
+        )
+    );
+}
+
+export function moveToTopOfDeck<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICardTargetSystemProperties, TContext>): CardTargetSystem<TContext> {
+    return new MoveCardSystem<TContext>(
+        GameSystem.appendToPropertiesOrPropertyFactory<IMoveCardProperties, 'destination'>(
+            propertyFactory,
+            { destination: DeckZoneDestination.DeckTop }
+        )
+    );
+}
+
+/**
+ * default resetOnCancel = false
+ */
+export function playCard<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IPlayCardProperties, TContext> = {}): PlayCardSystem<TContext> {
+    return new PlayCardSystem(propertyFactory);
+}
+export function playCardFromHand<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<Omit<IPlayCardProperties, 'playType' | 'optional'>, TContext> = {}): PlayCardSystem<TContext> {
+    // TODO: implement playing with smuggle and from non-standard zones(discard(e.g. Palpatine's Return), top of deck(e.g. Ezra Bridger), etc.) as part of abilities with another function(s)
+    // TODO: implement a "nested" property in PlayCardSystem that controls whether triggered abilities triggered by playing the card resolve after that card play or after the whole ability
+    // playType automatically defaults to PlayFromHand
+    return new PlayCardSystem(propertyFactory);
+}
+export function playCardFromOutOfPlay<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<Omit<IPlayCardProperties, 'playType' | 'optional'>, TContext> = {}): PlayCardSystem<TContext> {
+    return new PlayCardSystem<TContext>(
+        GameSystem.appendToPropertiesOrPropertyFactory<IPlayCardProperties, 'playType'>(
+            propertyFactory,
+            { playType: PlayType.PlayFromOutOfPlay }
+        )
+    );
+}
+
+
+export function chooseModalEffects<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IPlayModalCardProperties, TContext>) {
+    return new ChooseModalEffectsSystem<TContext>(propertyFactory);
+}
+export function exhaustResources<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IExhaustResourcesProperties, TContext>): GameSystem<TContext> {
+    return new ExhaustResourcesSystem<TContext>(propertyFactory);
+}
+
+export function payResourceCost<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IExhaustResourcesProperties, TContext>): GameSystem<TContext> {
+    return new ExhaustResourcesSystem<TContext>(
+        GameSystem.appendToPropertiesOrPropertyFactory<IExhaustResourcesProperties, 'isCost'>(
+            propertyFactory,
+            { isCost: true }
+        )
+    );
 }
 
 /**
@@ -168,8 +237,11 @@ export function putIntoPlay<TContext extends AbilityContext = AbilityContext>(pr
 // export function opponentPutIntoPlay(propertyFactory: PropsFactory<OpponentPutIntoPlayProperties> = {}): GameSystem {
 //     return new OpponentPutIntoPlayAction(propertyFactory, false);
 // }
-export function ready<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IReadySystemProperties, TContext> = {}): GameSystem<TContext> {
+export function ready<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IReadySystemProperties, TContext> = {}) {
     return new ReadySystem<TContext>(propertyFactory);
+}
+export function rescue<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IRescueProperties, TContext> = {}) {
+    return new RescueSystem<TContext>(propertyFactory);
 }
 
 /**
@@ -190,11 +262,20 @@ export function resourceCard<TContext extends AbilityContext = AbilityContext>(p
 // export function returnToDeck(propertyFactory: PropsFactory<ReturnToDeckProperties> = {}): CardGameAction {
 //     return new ReturnToDeckAction(propertyFactory);
 // }
-export function returnToHand<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IReturnToHandProperties, TContext> = {}): CardTargetSystem<TContext> {
-    return new ReturnToHandSystem<TContext>(propertyFactory);
-}
-export function returnToHandFromPlay<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IReturnToHandFromPlayProperties, TContext> = {}): CardTargetSystem<TContext> {
-    return new ReturnToHandFromPlaySystem<TContext>(propertyFactory);
+
+/**
+ * Returns a card to the player's hand from any arena, discard pile, or resources.
+ *
+ * @param {PropsFactory<ICardTargetSystemProperties, TContext>} [propertyFactory={}] - A factory function or properties object to create the card target system properties.
+ * @returns {CardTargetSystem<TContext>} A new instance of the {@link MoveCardSystem} configured to move a card to the player's hand.
+ */
+export function returnToHand<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ICardTargetSystemProperties, TContext> = {}): CardTargetSystem<TContext> {
+    return new MoveCardSystem<TContext>(
+        GameSystem.appendToPropertiesOrPropertyFactory<IMoveCardProperties, 'destination'>(
+            propertyFactory,
+            { destination: ZoneName.Hand }
+        )
+    );
 }
 
 /**
@@ -206,9 +287,9 @@ export function reveal<TContext extends AbilityContext = AbilityContext>(propert
 // export function sacrifice(propertyFactory: PropsFactory<DiscardFromPlayProperties> = {}): CardGameAction {
 //     return new DiscardFromPlayAction(propertyFactory, true);
 // }
-// export function takeControl(propertyFactory: PropsFactory<TakeControlProperties> = {}): GameSystem {
-//     return new TakeControlAction(propertyFactory);
-// }
+export function takeControlOfUnit<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<ITakeControlProperties, TContext>) {
+    return new TakeControlOfUnitSystem(propertyFactory);
+}
 // export function triggerAbility(propertyFactory: PropsFactory<TriggerAbilityProperties>): GameSystem {
 //     return new TriggerAbilityAction(propertyFactory);
 // }
@@ -228,12 +309,19 @@ export function reveal<TContext extends AbilityContext = AbilityContext>(propert
 // //////////////
 // // PLAYER
 // //////////////
-// /**
-//  * default amount = 1
-//  */
-// export function chosenDiscard(propertyFactory: PropsFactory<ChosenDiscardProperties> = {}): GameSystem {
-//     return new ChosenDiscardAction(propertyFactory);
-// }
+export function discardCardsFromOwnHand<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDiscardCardsFromHandProperties, TContext>): DiscardCardsFromHandSystem<TContext> {
+    // TODO: Once we support discarding from opponents hand, add logic only allow the target to discard from their own hand here
+    return new DiscardCardsFromHandSystem<TContext>(propertyFactory);
+}
+
+/**
+ * Creates a new instance of a system that discards the entire hand of the target player(s).
+ *
+ * By default, this system will target the opponent of the player who initiated the ability.
+ */
+export function discardEntireHand<TContext extends AbilityContext = AbilityContext>(propertyFactory: PropsFactory<IDiscardEntireHandSystemProperties, TContext> = {}): DiscardEntireHandSystem<TContext> {
+    return new DiscardEntireHandSystem<TContext>(propertyFactory);
+}
 // /**
 //  * default amount = 1
 //  */
@@ -339,13 +427,10 @@ export function selectCard<TContext extends AbilityContext = AbilityContext>(pro
 // export function selectToken(propertyFactory: PropsFactory<SelectTokenProperties>): GameSystem {
 //     return new SelectTokenAction(propertyFactory);
 // }
-export function sequential<TContext extends AbilityContext = AbilityContext>(gameSystems: GameSystem<TContext>[]): GameSystem<TContext> {
+export function sequential<TContext extends AbilityContext = AbilityContext>(gameSystems: ISystemArrayOrFactory<TContext>): AggregateSystem<TContext> {
     return new SequentialSystem<TContext>(gameSystems);
 } // takes an array of gameActions, not a propertyFactory
-// export function sequentialContext(propertyFactory: PropsFactory<SequentialContextProperties>): GameSystem {
-//     return new SequentialContextAction(propertyFactory);
-// }
-export function simultaneous<TContext extends AbilityContext = AbilityContext>(gameSystems: (GameSystem<TContext>)[], ignoreTargetingRequirements = null): GameSystem<TContext> {
+export function simultaneous<TContext extends AbilityContext = AbilityContext>(gameSystems: ISystemArrayOrFactory<TContext>, ignoreTargetingRequirements = null): GameSystem<TContext> {
     return new SimultaneousGameSystem<TContext>(gameSystems, ignoreTargetingRequirements);
 }
 

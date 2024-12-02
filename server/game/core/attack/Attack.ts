@@ -14,7 +14,8 @@ export class Attack extends GameObject {
     public constructor(
         game: Game,
         public attacker: UnitCard,
-        public target: CardWithDamageProperty
+        public target: CardWithDamageProperty,
+        public isAmbush: boolean = false
     ) {
         super(game, 'Attack');
     }
@@ -57,7 +58,7 @@ export class Attack extends GameObject {
     }
 
     private getUnitPower(involvedUnit: UnitCard): StatisticTotal {
-        Contract.assertTrue(involvedUnit.isInPlay(), `Unit ${involvedUnit.name} location is ${involvedUnit.location}, cannot participate in combat`);
+        Contract.assertTrue(involvedUnit.isInPlay(), `Unit ${involvedUnit.name} zone is ${involvedUnit.zoneName}, cannot participate in combat`);
 
         return involvedUnit.getPower();
     }

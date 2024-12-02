@@ -1,6 +1,6 @@
 import AbilityHelper from '../../../AbilityHelper';
 import { NonLeaderUnitCard } from '../../../core/card/NonLeaderUnitCard';
-import { CardType, Location, RelativePlayer } from '../../../core/Constants';
+import { CardType, ZoneName, RelativePlayer } from '../../../core/Constants';
 
 export default class SalaciousCrumbObnoxiousPet extends NonLeaderUnitCard {
     protected override getImplementationId() {
@@ -12,12 +12,11 @@ export default class SalaciousCrumbObnoxiousPet extends NonLeaderUnitCard {
 
     public override setupCardAbilities() {
         this.addWhenPlayedAbility({
-            title: 'Heal 1 damage from friendly base',
-            targetResolver: {
-                cardTypeFilter: CardType.Base,
-                controller: RelativePlayer.Self,
-                immediateEffect: AbilityHelper.immediateEffects.heal({ amount: 1 })
-            }
+            title: 'Heal 1 damage from your base',
+            immediateEffect: AbilityHelper.immediateEffects.heal((context) => ({
+                amount: 1,
+                target: context.source.controller.base
+            }))
         });
 
         this.addActionAbility({
@@ -28,7 +27,7 @@ export default class SalaciousCrumbObnoxiousPet extends NonLeaderUnitCard {
             ],
             cannotTargetFirst: true,
             targetResolver: {
-                locationFilter: Location.GroundArena,
+                zoneFilter: ZoneName.GroundArena,
                 immediateEffect: AbilityHelper.immediateEffects.damage({ amount: 1 }),
             }
         });

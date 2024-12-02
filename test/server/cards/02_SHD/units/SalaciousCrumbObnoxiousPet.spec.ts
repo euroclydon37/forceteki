@@ -15,7 +15,7 @@ describe('Salacious Crumb, Obnoxious Pet', function() {
 
                 context.setDamage(context.p1Base, 5);
                 context.player1.clickCard(context.salaciousCrumb);
-                expect(context.salaciousCrumb).toBeInLocation('ground arena');
+                expect(context.salaciousCrumb).toBeInZone('groundArena');
 
                 expect(context.p1Base.damage).toBe(4);
             });
@@ -23,9 +23,8 @@ describe('Salacious Crumb, Obnoxious Pet', function() {
             it('should heal 0 from base if base has no damage', function () {
                 const { context } = contextRef;
 
-                context.setDamage(context.p1Base, 0);
                 context.player1.clickCard(context.salaciousCrumb);
-                expect(context.salaciousCrumb).toBeInLocation('ground arena');
+                expect(context.salaciousCrumb).toBeInZone('groundArena');
 
                 expect(context.p1Base.damage).toBe(0);
             });
@@ -56,13 +55,22 @@ describe('Salacious Crumb, Obnoxious Pet', function() {
 
                 context.player1.clickCard(context.frontierAtrt);
                 expect(context.frontierAtrt.damage).toBe(1);
-                expect(context.salaciousCrumb).toBeInLocation('hand');
+                expect(context.salaciousCrumb).toBeInZone('hand');
             });
 
             it('should not be available if Crumb is exhausted', function () {
-                const { context } = contextRef;
+                contextRef.setupTest({
+                    phase: 'action',
+                    player1: {
+                        groundArena: [{ card: 'salacious-crumb#obnoxious-pet', exhausted: true }, 'wampa'],
+                    },
+                    player2: {
+                        groundArena: ['frontier-atrt'],
+                        spaceArena: ['cartel-spacer']
+                    }
+                });
 
-                context.salaciousCrumb.exhausted = true;
+                const { context } = contextRef;
                 expect(context.salaciousCrumb).not.toHaveAvailableActionWhenClickedBy(context.player1);
             });
         });

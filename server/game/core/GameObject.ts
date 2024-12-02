@@ -61,7 +61,7 @@ export abstract class GameObject {
     }
 
     public canBeTargeted(context: AbilityContext, selectedCards: GameObject | GameObject[] = []) {
-        if (this.hasRestriction(AbilityRestriction.Target, context)) {
+        if (this.hasRestriction(AbilityRestriction.AbilityTarget, context)) {
             return false;
         }
         let targets = selectedCards;
@@ -82,10 +82,10 @@ export abstract class GameObject {
                 resourceCost = context.ability.getAdjustedCost(context);
             }
 
-            // return (context.player.countSpendableResources() >= targetingCost);
+            // return (context.player.readyResourceCount >= targetingCost);
         } else if (context.stage === Stage.Target || context.stage === Stage.Effect) {
             // We paid costs first, or targeting has to be done after costs have been paid
-            // return (context.player.countSpendableResources() >= targetingCost);
+            // return (context.player.readyResourceCount >= targetingCost);
         }
 
         return true;

@@ -1,23 +1,15 @@
 import Player from '../Player';
 import { WithCost } from './propertyMixins/Cost';
-import { CardType, KeywordName, Location, PlayType, RelativePlayer, WildcardLocation } from '../Constants';
+import { CardType, KeywordName, ZoneName, PlayType } from '../Constants';
 import * as Contract from '../utils/Contract';
-import { PlayableOrDeployableCard } from './baseClasses/PlayableOrDeployableCard';
-import { IConstantAbilityProps, IEventAbilityProps } from '../../Interfaces';
+import { IDecreaseEventCostAbilityProps, PlayableOrDeployableCard } from './baseClasses/PlayableOrDeployableCard';
+import { IEventAbilityProps } from '../../Interfaces';
 import { EventAbility } from '../ability/EventAbility';
 import { PlayEventAction } from '../../actions/PlayEventAction';
 import { WithStandardAbilitySetup } from './propertyMixins/StandardAbilitySetup';
 import AbilityHelper from '../../AbilityHelper';
 import PlayerOrCardAbility from '../ability/PlayerOrCardAbility';
-import { CostAdjustDirection, ICostAdjusterProperties } from '../cost/CostAdjuster';
-import { AbilityContext } from '../ability/AbilityContext';
-import { match } from 'assert';
-import { Card } from './Card';
-
-export interface IDecreaseEventCostAbilityProps<TSource extends Card = Card> extends Omit<ICostAdjusterProperties, 'cardTypeFilter' | 'match' | 'direction'> {
-    title: string;
-    condition?: (context: AbilityContext<TSource>) => boolean;
-}
+import { TokenOrPlayableCard } from './CardTypes';
 
 const EventCardParent = WithCost(WithStandardAbilitySetup(PlayableOrDeployableCard));
 
@@ -28,11 +20,11 @@ export class EventCard extends EventCardParent {
         super(owner, cardData);
         Contract.assertEqual(this.printedType, CardType.Event);
 
-        this.defaultActions.push(new PlayEventAction(this));
+        this.defaultActions.push(new PlayEventAction({ card: this }));
 
         Contract.assertNotNullLike(this._eventAbility, 'Event card\'s ability was not initialized');
 
-        // currently the only constant abilities an event card can have are those that reduce cost, which are always active regardless of location
+        // currently the only constant abilities an event card can have are those that reduce cost, which are always active regardless of zone
         for (const constantAbility of this.constantAbilities) {
             constantAbility.registeredEffects = this.addEffectToEngine(constantAbility);
         }
@@ -45,10 +37,14 @@ export class EventCard extends EventCardParent {
     public override getActions(): PlayerOrCardAbility[] {
         const actions = super.getActions();
 
-        if (this.location === Location.Resource && this.hasSomeKeyword(KeywordName.Smuggle)) {
-            actions.push(new PlayEventAction(this, PlayType.Smuggle));
+        if (this.zoneName === ZoneName.Resource && this.hasSomeKeyword(KeywordName.Smuggle)) {
+            actions.push(new PlayEventAction({ card: this, playType: PlayType.Smuggle }));
         }
         return actions;
+    }
+
+    public override isTokenOrPlayable(): this is TokenOrPlayableCard {
+        return true;
     }
 
     /** Ability of event card when played. Will be a "blank" ability with no effect if this card is disabled by an effect. */
@@ -58,12 +54,12 @@ export class EventCard extends EventCardParent {
             : this._eventAbility;
     }
 
-    protected override initializeForCurrentLocation(prevLocation: Location): void {
-        super.initializeForCurrentLocation(prevLocation);
+    protected override initializeForCurrentZone(prevZone?: ZoneName): void {
+        super.initializeForCurrentZone(prevZone);
 
         // event cards can only be exhausted when resourced
-        switch (this.location) {
-            case Location.Resource:
+        switch (this.zoneName) {
+            case ZoneName.Resource:
                 this.setExhaustEnabled(true);
                 break;
 
@@ -78,24 +74,9 @@ export class EventCard extends EventCardParent {
         this._eventAbility = new EventAbility(this.game, this, properties);
     }
 
-    /** Add a constant ability on the event card that decreases its cost under the given condition */
+
+    /** Add a constant ability on the card that decreases its cost under the given condition */
     protected addDecreaseCostAbility(properties: IDecreaseEventCostAbilityProps<this>): void {
-        const { title, condition, ...otherProps } = properties;
-
-        const costAdjusterProps: ICostAdjusterProperties = Object.assign(otherProps, {
-            cardTypeFilter: CardType.Event,
-            match: (card, adjusterSource) => card === adjusterSource,
-            direction: CostAdjustDirection.Decrease
-        });
-
-        const costAdjustAbilityProps: IConstantAbilityProps = {
-            title,
-            sourceLocationFilter: WildcardLocation.Any,
-            targetController: RelativePlayer.Any,
-            condition: condition,
-            ongoingEffect: AbilityHelper.ongoingEffects.decreaseCost(costAdjusterProps)
-        };
-
-        this.constantAbilities.push(this.createConstantAbility(costAdjustAbilityProps));
+        this.constantAbilities.push(this.createConstantAbility(this.generateDecreaseCostAbilityProps(properties)));
     }
 }

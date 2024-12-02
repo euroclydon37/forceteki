@@ -1,23 +1,30 @@
 import { AbilityRestriction, EffectName, EventName, PlayType, RelativePlayer } from '../core/Constants.js';
 import { putIntoPlay } from '../gameSystems/GameSystemLibrary.js';
-import { Card } from '../core/card/Card';
 import { GameEvent } from '../core/event/GameEvent.js';
-import { PlayCardAction, PlayCardContext } from '../core/ability/PlayCardAction.js';
+import { PlayCardAction, PlayCardContext, IPlayCardActionProperties } from '../core/ability/PlayCardAction.js';
 import * as Contract from '../core/utils/Contract.js';
 
+export interface IPlayUnitActionProperties extends IPlayCardActionProperties {
+    entersReady?: boolean;
+}
+
 export class PlayUnitAction extends PlayCardAction {
-    public constructor(card: Card, playType: PlayType = PlayType.PlayFromHand) {
-        super(card, 'Play this unit', playType);
+    private entersReady: boolean;
+
+    public constructor(properties: IPlayUnitActionProperties) {
+        super({ ...properties, title: 'Play this unit' });
+
+        // default to false
+        this.entersReady = !!properties.entersReady;
     }
 
     public override executeHandler(context: PlayCardContext): void {
         Contract.assertTrue(context.source.isUnit());
 
-        const cardPlayedEvent = new GameEvent(EventName.OnCardPlayed, {
+        const cardPlayedEvent = new GameEvent(EventName.OnCardPlayed, context, {
             player: context.player,
             card: context.source,
-            context: context,
-            originalLocation: context.source.location,
+            originalZone: context.source.zoneName,
             originallyOnTopOfDeck:
                 context.player && context.player.drawDeck && context.player.drawDeck[0] === context.source,
             onPlayCardSource: context.onPlayCardSource,
@@ -29,11 +36,13 @@ export class PlayUnitAction extends PlayCardAction {
             context.player,
             context.source,
         );
-        const effect = context.source.getOngoingEffectValues(EffectName.EntersPlayForOpponent);
-        const player = effect.length > 0 ? RelativePlayer.Opponent : RelativePlayer.Self;
+
+        // TODO TAKE CONTROL
+        const playForOpponentEffect = context.source.getOngoingEffectValues(EffectName.EntersPlayForOpponent);
+        const player = playForOpponentEffect.length > 0 ? RelativePlayer.Opponent : RelativePlayer.Self;
 
         const events = [
-            putIntoPlay({ controller: player }).generateEvent(context.source, context),
+            putIntoPlay({ target: context.source, controller: player, entersReady: this.entersReady }).generateEvent(context),
             cardPlayedEvent
         ];
 
@@ -41,7 +50,7 @@ export class PlayUnitAction extends PlayCardAction {
             events.push(this.generateSmuggleEvent(context));
         }
 
-        context.game.openEventWindow(events, this.resolveTriggersAfter);
+        context.game.openEventWindow(events, this.triggerHandlingMode);
     }
 
     public override meetsRequirements(context = this.createContext(), ignoredRequirements: string[] = []): string {

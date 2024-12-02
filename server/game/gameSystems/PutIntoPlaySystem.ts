@@ -1,12 +1,19 @@
 import type { AbilityContext } from '../core/ability/AbilityContext';
-import { AbilityRestriction, EventName, KeywordName, Location, RelativePlayer, WildcardCardType } from '../core/Constants';
-import * as EnumHelpers from '../core/utils/EnumHelpers';
-import { type ICardTargetSystemProperties, CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
+import {
+    AbilityRestriction, EffectName,
+    EventName,
+    KeywordName,
+    RelativePlayer,
+    WildcardCardType,
+    ZoneName
+} from '../core/Constants';
+import { CardTargetSystem, type ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
 import { Card } from '../core/card/Card';
 
 export interface IPutIntoPlayProperties extends ICardTargetSystemProperties {
     controller?: RelativePlayer;
-    overrideLocation?: Location;
+    overrideZone?: ZoneName;
+    entersReady?: boolean;
 }
 
 export class PutIntoPlaySystem<TContext extends AbilityContext = AbilityContext> extends CardTargetSystem<TContext, IPutIntoPlayProperties> {
@@ -17,32 +24,22 @@ export class PutIntoPlaySystem<TContext extends AbilityContext = AbilityContext>
     protected override readonly targetTypeFilter = [WildcardCardType.Unit];
     protected override defaultProperties: IPutIntoPlayProperties = {
         controller: RelativePlayer.Self,
-        overrideLocation: null
+        overrideZone: null,
+        entersReady: false
     };
 
-
     public eventHandler(event, additionalProperties = {}): void {
-        const player = this.getPutIntoPlayPlayer(event.context);
+        event.card.moveTo(event.card.defaultArena);
 
-        let finalController = event.context.player;
-        if (event.controller === RelativePlayer.Opponent) {
-            finalController = finalController.opponent;
+        // TODO TAKE CONTROL
+        if (event.controller !== RelativePlayer.Self) {
+            throw new Error(`Attempting to put ${event.card.internalName} into play for opponent, which is not implemented yet`);
         }
-
-        player.moveCard(event.card, event.card.defaultArena);
 
         if (event.status === 'ready') {
             event.card.ready();
         } else {
             event.card.exhaust();
-        }
-
-        // moveCard sets all this stuff and only works if the owner is moving cards, so we're switching it around
-        if (event.card.controller !== finalController) {
-            event.card.controller = finalController;
-            event.card.setDefaultController(event.card.controller);
-            event.card.owner.cardsInPlay.splice(event.card.owner.cardsInPlay.indexOf(event.card), 1);
-            event.card.controller.cardsInPlay.push(event.card);
         }
     }
 
@@ -53,14 +50,12 @@ export class PutIntoPlaySystem<TContext extends AbilityContext = AbilityContext>
 
     public override canAffect(card: Card, context: TContext): boolean {
         const contextCopy = context.copy({ source: card });
-        const player = this.getPutIntoPlayPlayer(contextCopy);
-        const location = card.location;
-
+        const player = this.getPutIntoPlayPlayer(contextCopy, card);
         if (!super.canAffect(card, context)) {
             return false;
-        } else if (!card.canBeInPlay() || card.isInPlay() || (card.facedown && card.location !== Location.Resource)) {
+        } else if (!card.canBeInPlay() || card.isInPlay()) {
             return false;
-        } else if (card.location === Location.Resource && !card.hasSomeKeyword(KeywordName.Smuggle)) {
+        } else if (card.zoneName === ZoneName.Resource && !card.hasSomeKeyword(KeywordName.Smuggle)) {
             return false;
         } else if (card.hasRestriction(AbilityRestriction.EnterPlay, context)) {
             return false;
@@ -71,16 +66,18 @@ export class PutIntoPlaySystem<TContext extends AbilityContext = AbilityContext>
     }
 
     protected override addPropertiesToEvent(event, card: Card, context: TContext, additionalProperties): void {
-        const { controller, overrideLocation } = this.generatePropertiesFromContext(
+        // TODO:rename this class and all related classes / methods as PutUnitIntoPlay
+        const { controller, overrideZone, entersReady } = this.generatePropertiesFromContext(
             context,
             additionalProperties
         ) as IPutIntoPlayProperties;
         super.addPropertiesToEvent(event, card, context, additionalProperties);
         event.controller = controller;
-        event.originalLocation = overrideLocation || card.location;
+        event.originalZone = overrideZone || card.zoneName;
+        event.status = entersReady || context.source.hasOngoingEffect(EffectName.EntersPlayReady) ? 'ready' : event.status;
     }
 
-    private getPutIntoPlayPlayer(context: AbilityContext) {
-        return context.player;
+    private getPutIntoPlayPlayer(context: AbilityContext, card: Card) {
+        return context.player || card.owner;
     }
 }

@@ -15,6 +15,21 @@ axiosRetry(axios, {
     retryDelay: () => (Math.random() * 2000) + 1000      // jitter retry delay by 1 - 3 seconds
 });
 
+function populateMissingData(attributes, id) {
+    switch (id) {
+        case '3941784506': // clone trooper
+        case '3463348370': // battle droid
+            attributes.type = {
+                data: {
+                    attributes: {
+                        name: 'token unit'
+                    }
+                }
+            };
+            break;
+    }
+}
+
 function getAttributeNames(attributeList) {
     if (Array.isArray(attributeList.data)) {
         return attributeList.data.map((attr) => attr.attributes.name.toLowerCase());
@@ -30,8 +45,8 @@ function filterValues(card) {
         return null;
     }
 
-    // filtering out TWI for now since the cards don't have complete data
-    if (card.attributes.expansion.data.attributes.code === 'TWI' || card.attributes.expansion.data.attributes.code === 'C24') {
+    // filtering out C24 for now since we do not handle variants
+    if (card.attributes.expansion.data.attributes.code === 'C24') {
         return null;
     }
 
@@ -41,7 +56,18 @@ function filterValues(card) {
 
     let filteredObj = filterAttributes(card.attributes);
 
+    if (card.attributes.upgradeHp != null) {
+        filteredObj.hp = card.attributes.upgradeHp;
+    }
+
+    if (card.attributes.upgradePower != null) {
+        filteredObj.power = card.attributes.upgradePower;
+    }
+
     filteredObj.id = card.attributes.cardId || card.attributes.cardUid;
+
+    populateMissingData(card.attributes, filteredObj.id);
+
     filteredObj.aspects = getAttributeNames(card.attributes.aspects);
     filteredObj.traits = getAttributeNames(card.attributes.traits);
     filteredObj.arena = getAttributeNames(card.attributes.arenas)[0];
@@ -89,10 +115,11 @@ function getCardData(page, progressBar) {
 
 function getUniqueCards(cards) {
     const cardMap = [];
+    const playableCardTitlesSet = new Set();
     const seenNames = [];
     var duplicatesWithSetCode = {};
     const uniqueCardsMap = new Map();
-    const setNumber = new Map([['SOR', 1], ['SHD', 2]]);
+    const setNumber = new Map([['SOR', 1], ['SHD', 2], ['TWI', 3]]);
 
     for (const card of cards) {
         if (seenNames.includes(card.internalName)) {
@@ -109,11 +136,19 @@ function getUniqueCards(cards) {
 
         seenNames.push(card.internalName);
         cardMap.push({ id: card.id, internalName: card.internalName, title: card.title, subtitle: card.subtitle });
+
+        if (!card.types.includes('token') && !card.types.includes('leader') && !card.types.includes('base')) {
+            playableCardTitlesSet.add(card.title);
+        }
+
         uniqueCardsMap.set(card.internalName, card);
     }
 
+    const playableCardTitles = Array.from(playableCardTitlesSet);
+    playableCardTitles.sort();
+
     const uniqueCards = [...uniqueCardsMap].map(([internalName, card]) => card);
-    return { uniqueCards, cardMap, duplicatesWithSetCode };
+    return { uniqueCards, cardMap, playableCardTitles, duplicatesWithSetCode };
 }
 
 async function main() {
@@ -138,7 +173,7 @@ async function main() {
 
     downloadProgressBar.stop();
 
-    const { uniqueCards, cardMap, duplicatesWithSetCode } = getUniqueCards(cards);
+    const { uniqueCards, cardMap, playableCardTitles, duplicatesWithSetCode } = getUniqueCards(cards);
 
     cards.map((card) => delete card.debugObject);
 
@@ -159,6 +194,7 @@ async function main() {
     // }
 
     fs.writeFile(path.join(pathToJSON, '_cardMap.json'), JSON.stringify(cardMap, null, 2));
+    fs.writeFile(path.join(pathToJSON, '_playableCardTitles.json'), JSON.stringify(playableCardTitles, null, 2));
 
     console.log(`\n${uniqueCards.length} card definition files downloaded to ${pathToJSON}`);
 }
