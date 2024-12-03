@@ -3,11 +3,13 @@ import type Player from '../game/core/Player';
 import { v4 as uuid } from 'uuid';
 import Socket from '../socket';
 import defaultGameSettings from './defaultGame';
+import { Deck } from '../game/Deck';
 
 interface LobbyUser {
     id: string;
     state: 'connected' | 'disconnected';
     socket: Socket | null;
+    deck: Deck | null;
 }
 
 export class Lobby {
@@ -30,15 +32,24 @@ export class Lobby {
         socket.registerEvent('startGame', () => this.onStartGame());
         socket.registerEvent('game', (socket, command, ...args) => this.onGameMessage(socket, command, ...args));
         // maybe we neeed to be using socket.data
+        let newDeck: Deck | null = null;
+        if (id === 'Order66') {
+            newDeck = new Deck(defaultGameSettings.players[0].deck);
+        } else {
+            newDeck = new Deck(defaultGameSettings.players[1].deck);
+        }
         if (existingUser) {
             existingUser.state = 'connected';
             existingUser.socket = socket;
+            existingUser.deck = newDeck;
         } else {
-            this.users.push({ id: id, state: 'connected', socket });
+            this.users.push({ id: id, state: 'connected', socket, deck: newDeck });
         }
 
         if (this.game) {
             this.sendGameState(this.game);
+        } else {
+            this.sendDeckInfo();
         }
     }
 
@@ -151,6 +162,16 @@ export class Lobby {
         for (const user of this.users) {
             if (user.state === 'connected' && user.socket) {
                 user.socket.send('gamestate', game.getState(user.id));
+                console.log(user.deck);
+                user.socket.send('deckData', user.deck);
+            }
+        }
+    }
+
+    public sendDeckInfo(): void {
+        for (const user of this.users) {
+            if (user.state === 'connected' && user.socket) {
+                user.socket.send('deckData', user.deck);
             }
         }
     }
