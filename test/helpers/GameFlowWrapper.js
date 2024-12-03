@@ -211,6 +211,8 @@ class GameFlowWrapper {
         } else if (damageDiff < 0) {
             card.removeDamage(-damageDiff, {});
         }
+
+        this.game.resolveGameState(true);
     }
 
     /**

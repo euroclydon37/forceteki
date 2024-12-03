@@ -89,7 +89,7 @@ describe('Fifth Brother, Fear Hunter', function() {
             it('should have raid equal to current damage', function () {
                 const { context } = contextRef;
 
-                context.fifthBrother.damage = 2;
+                context.setDamage(context.fifthBrother, 2);
 
                 context.player1.clickCard(context.fifthBrother);
 
@@ -109,7 +109,7 @@ describe('Fifth Brother, Fear Hunter', function() {
             it('should increase raid amount if on-attack ability is activated', function () {
                 const { context } = contextRef;
 
-                context.fifthBrother.damage = 2;
+                context.setDamage(context.fifthBrother, 2);
 
                 context.player1.clickCard(context.fifthBrother);
 
