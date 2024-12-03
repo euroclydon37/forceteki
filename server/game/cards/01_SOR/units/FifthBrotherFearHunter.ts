@@ -1,4 +1,5 @@
 import AbilityHelper from '../../../AbilityHelper';
+import * as KeywordHelpers from '../../../core/ability/KeywordHelpers';
 import { NonLeaderUnitCard } from '../../../core/card/NonLeaderUnitCard';
 import { EffectName, KeywordName, RelativePlayer, WildcardCardType, ZoneName } from '../../../core/Constants';
 import { OngoingEffectBuilder } from '../../../core/ongoingEffect/OngoingEffectBuilder';
@@ -33,7 +34,7 @@ export default class FifthBrotherFearHunter extends NonLeaderUnitCard {
             title: 'This unit gains RAID 1 for each damage on him.',
             matchTarget: (card, context) => card === context.source,
             condition: (context) => context.source.damage > 0,
-            ongoingEffect: OngoingEffectBuilder.card.dynamic(EffectName.GainKeyword, (target) => ({ keyword: KeywordName.Raid, amount: target.damage })),
+            ongoingEffect: OngoingEffectBuilder.card.dynamic(EffectName.GainKeyword, (target) => KeywordHelpers.keywordFromProperties({ keyword: KeywordName.Raid, amount: target.damage })),
         });
     }
 }
