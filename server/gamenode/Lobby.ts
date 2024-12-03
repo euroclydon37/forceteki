@@ -171,7 +171,7 @@ export class Lobby {
     public sendDeckInfo(): void {
         for (const user of this.users) {
             if (user.state === 'connected' && user.socket) {
-                user.socket.send('deckData', user.deck);
+                user.socket.send('deckData', user.deck.reconstructDeck());
             }
         }
     }
