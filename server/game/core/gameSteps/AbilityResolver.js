@@ -37,10 +37,17 @@ class AbilityResolver extends BaseStepWithPipeline {
             handler: () => {
                 this.cancelled = true;
                 this.resolutionComplete = true;
+
+                // if there is an "if you do not" part of this ability, we need to resolve that on pass
+                if (this.context.ability.properties?.ifYouDoNot) {
+                    const ifYouDoNotAbilityContext = this.context.ability.getSubAbilityStep(this.context);
+
+                    if (ifYouDoNotAbilityContext) {
+                        this.game.resolveAbility(ifYouDoNotAbilityContext);
+                    }
+                }
             }
         } : null;
-
-        // UP NEXT: handle then effects here (add them here and execute them even if the ability is cancelled)
     }
 
     initialise() {
