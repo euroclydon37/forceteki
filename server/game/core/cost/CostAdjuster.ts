@@ -5,7 +5,7 @@ import { Aspect, CardTypeFilter, PlayType, WildcardCardType } from '../Constants
 import type Game from '../Game';
 import type Player from '../Player';
 import * as Contract from '../../core/utils/Contract';
-import { cardTypeMatches } from "../utils/EnumHelpers";
+import { cardTypeMatches } from '../utils/EnumHelpers';
 
 export enum CostAdjustType {
     Increase = 'increase',
