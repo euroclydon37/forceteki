@@ -21,7 +21,6 @@ export default class GeneralsBlade extends UpgradeCard {
             immediateEffect: AbilityHelper.immediateEffects.forThisPhasePlayerEffect({
                 effect: AbilityHelper.ongoingEffects.decreaseCost({
                     cardTypeFilter: WildcardCardType.Unit,
-                    limit: AbilityLimit.perGame(1),
                     amount: 2
                 })
             }),

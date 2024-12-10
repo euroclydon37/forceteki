@@ -1,5 +1,5 @@
 import type { AbilityContext } from '../ability/AbilityContext';
-import type { IAbilityLimit } from '../ability/AbilityLimit';
+import { PerGameAbilityLimit, type IAbilityLimit } from '../ability/AbilityLimit';
 import type { Card } from '../card/Card';
 import { Aspect, CardTypeFilter, PlayType, WildcardCardType } from '../Constants';
 import type Game from '../Game';
@@ -100,7 +100,7 @@ export class CostAdjuster {
             properties.playingTypes &&
             (Array.isArray(properties.playingTypes) ? properties.playingTypes : [properties.playingTypes]);
 
-        this.limit = properties.limit;
+        this.limit = properties.limit || new PerGameAbilityLimit(1);
         if (this.limit) {
             this.limit.registerEvents(game);
         }
