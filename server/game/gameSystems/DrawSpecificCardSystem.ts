@@ -1,10 +1,9 @@
 import type { AbilityContext } from '../core/ability/AbilityContext';
 import type { Card } from '../core/card/Card';
-import { CardType, EffectName, EventName, ZoneName, MetaEventName, WildcardCardType } from '../core/Constants';
+import { CardType, EffectName, EventName, WildcardCardType, ZoneName } from '../core/Constants';
 import * as EnumHelpers from '../core/utils/EnumHelpers';
-import { type ICardTargetSystemProperties, CardTargetSystem } from '../core/gameSystem/CardTargetSystem';
+import { CardTargetSystem, type ICardTargetSystemProperties } from '../core/gameSystem/CardTargetSystem';
 import { ShuffleDeckSystem } from './ShuffleDeckSystem';
-import * as Contract from '../core/utils/Contract';
 
 export interface IDrawSpecificCardProperties extends ICardTargetSystemProperties {
     switch?: boolean;
@@ -30,7 +29,7 @@ export class DrawSpecificCardSystem<TContext extends AbilityContext = AbilityCon
     public eventHandler(event: any, additionalProperties = {}): void {
         const context = event.context;
         const card = event.card;
-        // TODO: remove this completely if determinmed we don't need card snapshots
+        // TODO: remove this completely if determined we don't need card snapshots
         // event.cardStateWhenMoved = card.createSnapshot();
         const properties = this.generatePropertiesFromContext(context, additionalProperties) as IDrawSpecificCardProperties;
         card.moveTo(ZoneName.Hand);
