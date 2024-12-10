@@ -38,6 +38,8 @@ class PlayerInteractionWrapper {
         this.player.discardZone.cards.forEach((card) => this.moveCard(card, 'outsideTheGame'));
         this.player.handZone.cards.forEach((card) => this.moveCard(card, 'outsideTheGame'));
         this.player.deckZone.cards.forEach((card) => this.moveCard(card, 'outsideTheGame'));
+
+        this.game.resolveGameState(true);
     }
 
     get hand() {
@@ -518,6 +520,10 @@ class PlayerInteractionWrapper {
 
     setDistributeHealingPromptState(cardDistributionMap) {
         this.setDistributeAmongTargetsPromptState(cardDistributionMap, 'distributeHealing');
+    }
+
+    setDistributeExperiencePromptState(cardDistributionMap) {
+        this.setDistributeAmongTargetsPromptState(cardDistributionMap, 'distributeExperience');
     }
 
     setDistributeAmongTargetsPromptState(cardDistributionMap, type) {
