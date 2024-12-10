@@ -35,12 +35,12 @@ class DeckBuilder {
         return cards;
     }
 
-    getOwnedCards(playerNumber, playerOptions, oppOptions, arena = 'null') {
+    getOwnedCards(playerNumber, playerOptions, oppOptions, arena = 'anyArena') {
         let { groundArena, spaceArena, ...playerCards } = playerOptions;
 
         let opponentAttachedUpgrades = [];
 
-        if ((arena === 'groundArena' || arena == null) && playerOptions.groundArena) {
+        if ((arena === 'groundArena' || arena === 'anyArena') && playerOptions.groundArena) {
             const playerControlled = playerOptions.groundArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
             const oppControlled = oppOptions.groundArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
             playerCards.groundArena = (playerControlled || []).concat((oppControlled || []));
@@ -60,7 +60,7 @@ class DeckBuilder {
                 }
             });
         }
-        if (arena === 'spaceArena' || arena == null) {
+        if (arena === 'spaceArena' || arena === 'anyArena') {
             const playerControlled = playerOptions.spaceArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
             const oppControlled = oppOptions.spaceArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
             playerCards.spaceArena = (playerControlled || []).concat((oppControlled || []));
