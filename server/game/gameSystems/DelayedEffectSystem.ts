@@ -75,11 +75,6 @@ export class DelayedEffectSystem<TContext extends AbilityContext = AbilityContex
         }
     }
 
-    public override generatePropertiesFromContext(context: TContext, additionalProperties = {}) {
-        const properties = super.generatePropertiesFromContext(context, additionalProperties);
-        return properties;
-    }
-
     public override hasLegalTarget(context: TContext, additionalProperties = {}): boolean {
         const properties = this.generatePropertiesFromContext(context, additionalProperties);
         return properties.immediateEffect != null;

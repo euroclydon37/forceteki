@@ -47,5 +47,50 @@ describe('Zorii Bliss', function() {
                 expect(context.player2).toHavePrompt('Select between 0 and 1 cards to resource');
             });
         });
+
+        describe('Zorii Bliss\'s ability', function() {
+            beforeEach(function () {
+                contextRef.setupTest({
+                    phase: 'action',
+                    player1: {
+                        groundArena: ['zorii-bliss#valiant-smuggler'],
+                        hand: [],
+                        deck: ['battlefield-marine', 'wampa', 'pyke-sentinel']
+                    },
+                    player2: {
+                        hand: ['vanquish']
+                    }
+                });
+            });
+
+            it('draws a card on attack and has no card to discard', function () {
+                const { context } = contextRef;
+
+                // Attack with Zorii and draw a card; create delayed discard
+                context.player1.clickCard(context.zoriiBliss);
+                expect(context.player1.hand.length).toBe(1);
+                expect(context.battlefieldMarine).toBeInZone('hand', context.player1);
+
+                context.player2.clickCard(context.vanquish);
+                context.player1.clickCard(context.battlefieldMarine);
+
+                // Move to regroup phase
+                context.moveToRegroupPhase();
+
+                // No discard prompt as Player 1's hand is empty
+
+                // Verify we move on to regroup phase
+                expect(context.player1).toHavePrompt('Select between 0 and 1 cards to resource');
+                context.player1.clickPrompt('Done');
+                context.player2.clickPrompt('Done');
+
+                // Pass again to make sure we don't have to discard again
+                expect(context.player1).toBeActivePlayer();
+
+                // Verify we move on to regroup phase again
+                context.moveToRegroupPhase();
+                expect(context.player2).toHavePrompt('Select between 0 and 1 cards to resource');
+            });
+        });
     });
 });
