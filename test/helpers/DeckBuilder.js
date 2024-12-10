@@ -35,7 +35,7 @@ class DeckBuilder {
         return cards;
     }
 
-    getOwnedCards(playerNumber, playerOptions, oppOptions, arena = null) {
+    getOwnedCards(playerNumber, playerOptions, oppOptions, arena = 'null') {
         let { groundArena, spaceArena, ...playerCards } = playerOptions;
 
         let opponentAttachedUpgrades = [];

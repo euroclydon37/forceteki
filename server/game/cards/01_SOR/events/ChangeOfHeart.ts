@@ -19,7 +19,8 @@ export default class ChangeOfHeart extends EventCard {
                     AbilityHelper.immediateEffects.takeControlOfUnit((context) => ({
                         newController: context.source.controller
                     })),
-                    AbilityHelper.immediateEffects.delayedEffect((context) => ({
+                    AbilityHelper.immediateEffects.delayedCardEffect((context) => ({
+                        title: 'Owner takes control',
                         when: {
                             onPhaseStarted: (context) => context.phase === PhaseName.Regroup
                         },
@@ -28,20 +29,6 @@ export default class ChangeOfHeart extends EventCard {
                             newController: context.target.owner
                         })
                     }))
-                    // TODO remove before final merge
-                    // AbilityHelper.immediateEffects.cardLastingEffect((context) => ({
-                    //     duration: Duration.UntilEndOfRound,
-                    //     target: context.target,
-                    //     effect: AbilityHelper.ongoingEffects.delayedEffect({
-                    //         title: 'Return this to its owners control',
-                    //         when: {
-                    //             onPhaseStarted: (context) => context.phase === PhaseName.Regroup
-                    //         },
-                    //         immediateEffect: AbilityHelper.immediateEffects.takeControlOfUnit({
-                    //             newController: context.target.owner
-                    //         })
-                    //     })
-                    // }))
                 ])
             }
         });

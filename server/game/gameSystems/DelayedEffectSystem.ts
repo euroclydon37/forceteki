@@ -2,20 +2,24 @@ import AbilityHelper from '../AbilityHelper';
 import { AbilityContext } from '../core/ability/AbilityContext';
 import { IAbilityLimit } from '../core/ability/AbilityLimit';
 import { TriggeredAbilityContext } from '../core/ability/TriggeredAbilityContext';
-import { Duration, EffectName, EventName, GameStateChangeRequired, PhaseName, WildcardZoneName } from '../core/Constants';
+import { Duration, EventName } from '../core/Constants';
 import { GameEvent } from '../core/event/GameEvent';
 import { GameSystem, IGameSystemProperties } from '../core/gameSystem/GameSystem';
-import { OngoingEffectBuilder } from '../core/ongoingEffect/OngoingEffectBuilder';
 import { WhenType } from '../Interfaces';
 import * as Contract from '../core/utils/Contract';
-import { OngoingEffectSource } from '../core/ongoingEffect/OngoingEffectSource';
-import { last } from 'underscore';
+
+export enum DelayedEffectType {
+    Card,
+    Player
+}
 
 export interface IDelayedEffectSystemProperties extends IGameSystemProperties {
+    title: string;
     when: WhenType;
     duration?: Duration;
     limit?: IAbilityLimit;
     immediateEffect: GameSystem<TriggeredAbilityContext>;
+    effectType: DelayedEffectType;
 }
 
 export class DelayedEffectSystem<TContext extends AbilityContext = AbilityContext> extends GameSystem<TContext, IDelayedEffectSystemProperties> {
@@ -24,10 +28,12 @@ export class DelayedEffectSystem<TContext extends AbilityContext = AbilityContex
     public override readonly effectDescription: string = 'apply a delayed effect';
 
     protected override defaultProperties: IDelayedEffectSystemProperties = {
+        title: '',
         when: null,
-        duration: null,
+        duration: Duration.Persistent,
         limit: AbilityHelper.limit.perGame(1),
-        immediateEffect: null
+        immediateEffect: null,
+        effectType: null
     };
 
     public eventHandler(event: any, additionalProperties: any): void {
@@ -37,26 +43,33 @@ export class DelayedEffectSystem<TContext extends AbilityContext = AbilityContex
         //     properties.ability = event.context.ability;
         // }
 
-        const { when, duration, limit, immediateEffect, ...otherProperties } = properties;
+        const { title, when, duration, limit, immediateEffect, ...otherProperties } = properties;
 
-        const delayedEffect = AbilityHelper.ongoingEffects.delayedEffect({
-            title: 'Discard a card from your hand',
-            when: when,
-            immediateEffect: immediateEffect,
-            limit: limit
-        });
+        const renamedProperties = { ...otherProperties, ongoingEffect:
+            AbilityHelper.ongoingEffects.delayedEffect({
+                title,
+                when,
+                immediateEffect,
+                limit
+            }) };
 
-        const renamedProperties = Object.assign(otherProperties, { ongoingEffect: delayedEffect });
+        const delayedEffectTarget = properties.effectType === DelayedEffectType.Card ? event.context.target : event.context.source;
 
-        // If target is set, this targeting a card; otherwise, it is targeting a player
-        const delayedEffectTarget = event.context.target || event.context.source;
-
-        // Add more Durations as we implement
         switch (duration) {
+            case Duration.Persistent:
+                delayedEffectTarget.persistent(() => renamedProperties);
+                break;
+            case Duration.UntilEndOfAttack:
+                delayedEffectTarget.untilEndOfAttack(() => renamedProperties);
+                break;
+            case Duration.UntilEndOfPhase:
+                delayedEffectTarget.untilEndOfPhase(() => renamedProperties);
+                break;
             case Duration.UntilEndOfRound:
-                // TODO - Is this how we want to implement these? If no duration is provided, what do we set here?
                 delayedEffectTarget.untilEndOfRound(() => renamedProperties);
                 break;
+            case Duration.Custom:
+                throw new Error(`Duration ${duration} not implemented yet`);
             default:
                 Contract.fail('Invalid Duration for DelayedEffect');
         }

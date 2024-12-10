@@ -85,6 +85,7 @@ export class OngoingEffectEngine {
             this.unapplyAndRemove((effect) => effectsToRemove.includes(effect));
         }
         if (effectTriggers.length > 0) {
+            // TODO Implement the correct trigger window. We may need a subclass of TriggeredAbilityWindow for multiple simultaneous effects
             effectTriggers.forEach((trigger) => {
                 trigger.handler();
             });

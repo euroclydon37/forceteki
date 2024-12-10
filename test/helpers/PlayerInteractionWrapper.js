@@ -246,11 +246,6 @@ class PlayerInteractionWrapper {
                 card.damage = options.damage;
             }
 
-            // TODO Rework the card ownership logic when building decks in tests
-            // if (options.owner != null) {
-            //     card.owner = this.game.getPlayerByName(options.owner);
-            // }
-
             // Get the upgrades
             if (options.upgrades) {
                 options.upgrades.forEach((upgrade) => {
