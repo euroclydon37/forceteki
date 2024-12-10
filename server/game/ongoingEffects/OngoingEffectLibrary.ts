@@ -11,7 +11,7 @@ import { modifyCost } from './ModifyCost';
 // const { switchAttachmentSkillModifiers } = require('./Effects/Library/switchAttachmentSkillModifiers');
 import { EffectName, PlayType, KeywordName } from '../core/Constants';
 import { StatsModifier } from '../core/ongoingEffect/effectImpl/StatsModifier';
-import { IActionAbilityPropsWithType, ITriggeredAbilityProps, ITriggeredAbilityPropsWithType, KeywordNameOrProperties } from '../Interfaces';
+import { IAbilityPropsWithType, ITriggeredAbilityProps, KeywordNameOrProperties } from '../Interfaces';
 import { GainAbility } from '../core/ongoingEffect/effectImpl/GainAbility';
 import * as KeywordHelpers from '../core/ability/KeywordHelpers';
 import { CostAdjustType, IIgnoreAllAspectsCostAdjusterProperties, IIgnoreSpecificAspectsCostAdjusterProperties, IIncreaseOrDecreaseCostAdjusterProperties } from '../core/cost/CostAdjuster';
