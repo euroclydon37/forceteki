@@ -13,7 +13,8 @@ describe('Obi-Wan Kenobi, Patient Mentor', function () {
                         resources: 3,
                     },
                     player2: {
-                        groundArena: ['atst'],
+                        groundArena: [{ card: 'atst', damage: 2 }],
+                        base: { card: 'echo-base', damage: 2 }
                     },
                 });
 
@@ -40,7 +41,8 @@ describe('Obi-Wan Kenobi, Patient Mentor', function () {
                         leader: { card: 'obiwan-kenobi#patient-mentor', deployed: true }
                     },
                     player2: {
-                        groundArena: ['atst'],
+                        groundArena: [{ card: 'atst', damage: 2 }],
+                        base: { card: 'echo-base', damage: 2 }
                     },
                 });
 
@@ -62,9 +64,9 @@ describe('Obi-Wan Kenobi, Patient Mentor', function () {
 
                 expect(context.player2).toBeActivePlayer();
 
-                expect(context.p2Base.damage).toBe(4);
+                expect(context.p2Base.damage).toBe(6);
                 expect(context.wampa.damage).toBe(0);
-                expect(context.atst.damage).toBe(0);
+                expect(context.atst.damage).toBe(2);
 
                 reset();
 
@@ -84,7 +86,7 @@ describe('Obi-Wan Kenobi, Patient Mentor', function () {
 
                 expect(context.p2Base.damage).toBe(4);
                 expect(context.battlefieldMarine.damage).toBe(1);
-                expect(context.atst.damage).toBe(1);
+                expect(context.atst.damage).toBe(3);
             });
         });
     });

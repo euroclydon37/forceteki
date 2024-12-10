@@ -8,7 +8,7 @@ describe('Ephant Mon, Hea of Security', function () {
                     spaceArena: ['millennium-falcon#piece-of-junk']
                 },
                 player2: {
-                    groundArena: ['moisture-farmer', 'cantina-braggart'],
+                    groundArena: ['moisture-farmer', 'cantina-braggart', 'wampa'],
                     spaceArena: ['green-squadron-awing']
                 }
             });
@@ -45,6 +45,23 @@ describe('Ephant Mon, Hea of Security', function () {
 
             // battlefield marine should have captured cantina braggart
             expect(context.cantinaBraggart).toBeCapturedBy(context.battlefieldMarine);
+            expect(context.player2).toBeActivePlayer();
+
+            context.ephantMon.exhausted = false;
+            context.player1.moveCard(context.millenniumFalcon, 'discard');
+
+            // enemy wampa attack base
+            context.player2.clickCard(context.wampa);
+            context.player2.clickCard(context.p1Base);
+
+            context.player1.clickCard(context.ephantMon);
+            context.player1.clickCard(context.p2Base);
+
+            // enemy selection is skipped because there isn't any unit to capture green squadron awing
+            expect(context.player1).toBeAbleToSelectExactly([context.battlefieldMarine, context.ephantMon]);
+            context.player1.clickCard(context.battlefieldMarine);
+
+            expect(context.wampa).toBeCapturedBy(context.battlefieldMarine);
             expect(context.player2).toBeActivePlayer();
         });
     });
