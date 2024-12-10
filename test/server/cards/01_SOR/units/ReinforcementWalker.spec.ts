@@ -1,5 +1,3 @@
-import { ZoneName } from '../../../../../server/game/core/Constants';
-
 describe('Reinforcement Walker', function() {
     integration(function(contextRef) {
         describe('Reinforcement Walker\'s ability', function() {
@@ -29,7 +27,7 @@ describe('Reinforcement Walker', function() {
                 // Case 3: The user is able to draw the card when they click 'Draw'
                 context.player1.clickPrompt('Draw');
 
-                expect(context.allianceXwing).toBeInZone(ZoneName.Hand);
+                expect(context.allianceXwing).toBeInZone('hand');
                 expect(context.player2).toBeActivePlayer();
 
                 context.moveToNextActionPhase();
@@ -47,7 +45,7 @@ describe('Reinforcement Walker', function() {
 
                 // Case 6: The user is able to draw the card when they click 'Draw'
                 context.player1.clickPrompt('Draw');
-                expect(context.battlefieldMarine).toBeInZone(ZoneName.Hand);
+                expect(context.battlefieldMarine).toBeInZone('hand');
                 expect(context.player2).toBeActivePlayer();
             });
 
@@ -70,7 +68,7 @@ describe('Reinforcement Walker', function() {
                     context.player1.clickCard(context.reinforcementWalker);
                     context.player1.clickPrompt('Discard');
 
-                    expect(context.allianceXwing).toBeInZone(ZoneName.Discard);
+                    expect(context.allianceXwing).toBeInZone('discard');
                     expect(context.p1Base.damage).toEqual(7);
                     expect(context.player2).toBeActivePlayer();
 
@@ -85,7 +83,7 @@ describe('Reinforcement Walker', function() {
                     ]);
 
                     context.player1.clickPrompt('Discard');
-                    expect(context.battlefieldMarine).toBeInZone(ZoneName.Discard);
+                    expect(context.battlefieldMarine).toBeInZone('discard');
                     expect(context.p1Base.damage).toEqual(4);
                     expect(context.player2).toBeActivePlayer();
                 }
@@ -148,7 +146,7 @@ describe('Reinforcement Walker', function() {
 
                 context.player1.clickPrompt('Draw');
 
-                expect(context.allianceXwing).toBeInZone(ZoneName.Hand);
+                expect(context.allianceXwing).toBeInZone('hand');
 
                 // Case 3: The on attack ability from Ambush resolved successfully.
                 expect(context.player1).toHaveExactPromptButtons([
@@ -166,7 +164,7 @@ describe('Reinforcement Walker', function() {
 
                 context.player1.clickPrompt('Draw');
 
-                expect(context.echoBaseDefender).toBeInZone(ZoneName.Hand);
+                expect(context.echoBaseDefender).toBeInZone('hand');
                 expect(context.player2).toBeActivePlayer();
             });
         });

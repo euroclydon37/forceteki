@@ -37,15 +37,6 @@ class AbilityResolver extends BaseStepWithPipeline {
             handler: () => {
                 this.cancelled = true;
                 this.resolutionComplete = true;
-
-                // if there is an "if you do not" part of this ability, we need to resolve that on pass
-                if (this.context.ability.properties?.ifYouDoNot) {
-                    const ifYouDoNotAbilityContext = this.context.ability.getSubAbilityStep(this.context);
-
-                    if (ifYouDoNotAbilityContext) {
-                        this.game.resolveAbility(ifYouDoNotAbilityContext);
-                    }
-                }
             }
         } : null;
     }
@@ -69,6 +60,7 @@ class AbilityResolver extends BaseStepWithPipeline {
 
     openInitiateAbilityEventWindow() {
         if (this.cancelled) {
+            this.checkResolveIfYouDoNot();
             return;
         }
         let eventName = EventName.OnAbilityResolverInitiated;
@@ -102,6 +94,20 @@ class AbilityResolver extends BaseStepWithPipeline {
         this.game.queueStep(new InitiateAbilityEventWindow(this.game, this.events, this.context.ability.triggerHandlingMode));
     }
 
+    // if there is an "if you do not" part of this ability, we need to resolve it if the main ability doesn't resolve
+    checkResolveIfYouDoNot() {
+        if (!this.cancelled || !this.resolutionComplete) {
+            return;
+        }
+
+        if (this.context.ability.properties?.ifYouDoNot) {
+            const ifYouDoNotAbilityContext = this.context.ability.getSubAbilityStepContext(this.context);
+            if (ifYouDoNotAbilityContext) {
+                this.game.resolveAbility(ifYouDoNotAbilityContext);
+            }
+        }
+    }
+
     queueInitiateAbilitySteps() {
         this.game.queueSimpleStep(() => this.resolveCosts(), 'resolveCosts');
         this.game.queueSimpleStep(() => this.payCosts(), 'payCosts');
@@ -119,7 +125,7 @@ class AbilityResolver extends BaseStepWithPipeline {
 
         this.context.stage = Stage.PreTarget;
 
-        if (this.context.ability.meetsRequirements(this.context) !== '') {
+        if (this.context.ability.meetsRequirements(this.context, [], true) !== '') {
             this.cancelled = true;
             this.resolutionComplete = true;
         }
@@ -257,6 +263,7 @@ class AbilityResolver extends BaseStepWithPipeline {
 
     initiateAbilityEffects() {
         if (this.cancelled) {
+            this.checkResolveIfYouDoNot();
             for (const event of this.events) {
                 event.cancel();
             }
