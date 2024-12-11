@@ -1,4 +1,4 @@
-describe('Take control of a card', function() {
+describe('Take control system', function() {
     integration(function(contextRef) {
         describe('When a player takes control of a unit in the arena', function() {
             beforeEach(function () {
@@ -13,7 +13,10 @@ describe('Take control of a card', function() {
                         groundArena: ['wampa', 'atat-suppressor'],
                         hand: ['strike-true', 'vanquish', 'take-captive'],
                         leader: 'finn#this-is-a-rescue'
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
             });
 
@@ -149,7 +152,10 @@ describe('Take control of a card', function() {
                     player2: {
                         groundArena: [{ card: 'wampa', damage: 1 }],
                         hand: ['attack-pattern-delta']
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
 
                 const { context } = contextRef;
@@ -184,7 +190,10 @@ describe('Take control of a card', function() {
                     },
                     player2: {
                         groundArena: [{ card: 'regional-sympathizers', damage: 1 }]
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
 
                 const { context } = contextRef;
@@ -210,7 +219,10 @@ describe('Take control of a card', function() {
                     },
                     player2: {
                         groundArena: [{ card: 'supreme-leader-snoke#shadow-ruler', damage: 1 }, 'specforce-soldier', 'wampa']
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
 
                 const { context } = contextRef;
@@ -243,7 +255,10 @@ describe('Take control of a card', function() {
                     },
                     player2: {
                         groundArena: [{ card: 'bail-organa#rebel-councilor', damage: 1 }, 'wampa']
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
 
                 const { context } = contextRef;
@@ -271,7 +286,10 @@ describe('Take control of a card', function() {
                     player2: {
                         leader: { card: 'emperor-palpatine#galactic-ruler', exhausted: true },
                         groundArena: [{ card: 'wampa', damage: 1 }]
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
 
                 const { context } = contextRef;
@@ -306,7 +324,10 @@ describe('Take control of a card', function() {
                 },
                 player2: {
                     groundArena: [{ card: 'lom-pyke#dealer-in-truths', damage: 1 }]
-                }
+                },
+
+                // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                autoSingleTarget: true
             });
 
             const { context } = contextRef;
@@ -337,7 +358,10 @@ describe('Take control of a card', function() {
                 },
                 player2: {
                     groundArena: [{ card: 'wampa', damage: 1 }]
-                }
+                },
+
+                // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                autoSingleTarget: true
             });
 
             const { context } = contextRef;

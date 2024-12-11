@@ -12,7 +12,10 @@ describe('Finn, This is a Rescue', function () {
                     player2: {
                         groundArena: [{ card: 'wampa', upgrades: [{ card: 'entrenched', owner: 'player1' }] }],
                         resources: 5
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
             });
 
@@ -64,7 +67,10 @@ describe('Finn, This is a Rescue', function () {
                     player2: {
                         groundArena: ['wampa', { card: 'atst', upgrades: [{ card: 'entrenched', owner: 'player1' }] }, 'pyke-sentinel'],
                         resources: 5
-                    }
+                    },
+
+                    // IMPORTANT: this is here for backwards compatibility of older tests, don't use in new code
+                    autoSingleTarget: true
                 });
             });
 
