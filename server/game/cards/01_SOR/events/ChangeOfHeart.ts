@@ -24,7 +24,6 @@ export default class ChangeOfHeart extends EventCard {
                         when: {
                             onPhaseStarted: (context) => context.phase === PhaseName.Regroup
                         },
-                        duration: Duration.UntilEndOfRound,
                         immediateEffect: AbilityHelper.immediateEffects.takeControlOfUnit({
                             newController: context.target.owner
                         })

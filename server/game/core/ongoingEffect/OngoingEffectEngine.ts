@@ -49,7 +49,7 @@ export class OngoingEffectEngine {
             } else {
                 const triggeringEvents = events.filter((event) => properties.when[event.name]);
                 if (triggeringEvents.length > 0) {
-                    if (!properties.multipleTrigger && effect.duration !== Duration.Persistent) {
+                    if (properties.limit.isAtMax(effect.source.owner)) {
                         effectsToRemove.push(effect);
                     }
                     if (triggeringEvents.some((event) => properties.when[event.name](event, effect.context))) {
@@ -76,6 +76,7 @@ export class OngoingEffectEngine {
                     }
                     const actionEvents = [];
                     properties.immediateEffect.queueGenerateEventGameSteps(actionEvents, context);
+                    properties.limit.increment(context.source.owner);
                     this.game.queueSimpleStep(() => this.game.openEventWindow(actionEvents), 'openDelayedActionsWindow');
                     this.game.queueSimpleStep(() => this.game.resolveGameState(true), 'resolveGameState');
                 }
@@ -94,10 +95,23 @@ export class OngoingEffectEngine {
 
     public removeLastingEffects(card: OngoingEffectSource) {
         this.unapplyAndRemove(
-            (effect) =>
-                effect.matchTarget === card &&
-                effect.duration !== Duration.Persistent
+            (effect) => this.shouldRemove(card, effect)
         );
+    }
+
+    public shouldRemove(card: OngoingEffectSource, effect: OngoingEffect): boolean {
+        if (effect.duration !== Duration.Persistent) {
+            return effect.matchTarget === card;
+        }
+
+        if (effect.impl.type === 'delayedEffect') {
+            const effectImplValue = effect.impl.getValue();
+            const limit = effectImplValue.limit;
+
+            return limit.isAtMax(effect.source.controller);
+        }
+
+        return false;
     }
 
     public resolveEffects(prevStateChanged = false, loops = 0) {

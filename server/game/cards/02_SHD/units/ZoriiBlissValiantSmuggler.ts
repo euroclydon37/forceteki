@@ -20,7 +20,6 @@ export default class ZoriiBlissValiantSmuggler extends NonLeaderUnitCard {
                     when: {
                         onPhaseStarted: (context) => context.phase === PhaseName.Regroup,
                     },
-                    duration: Duration.UntilEndOfRound,
                     immediateEffect: AbilityHelper.immediateEffects.discardCardsFromOwnHand((context) => ({
                         amount: 1,
                         target: context.source.controller
