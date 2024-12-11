@@ -232,6 +232,7 @@ export enum EventName {
     OnTokenCreated = 'onTokenCreated',
     OnUnitEntersPlay = 'onUnitEntersPlay',
     OnUpgradeAttached = 'onUpgradeAttached',
+    OnUpgradeUnattached = 'onUpgradeUnattached',
 }
 
 /**
