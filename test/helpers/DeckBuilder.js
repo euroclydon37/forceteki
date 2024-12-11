@@ -41,49 +41,43 @@ class DeckBuilder {
         let opponentAttachedUpgrades = [];
 
         if ((arena === 'groundArena' || arena === 'anyArena') && playerOptions.groundArena) {
-            const playerControlled = playerOptions.groundArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
+            const playerControlled = playerOptions.groundArena.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
             const oppControlled = oppOptions.groundArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
             playerCards.groundArena = (playerControlled || []).concat((oppControlled || []));
 
-            oppOptions.groundArena?.forEach((card) => {
-                if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
-                    card.upgrades.forEach((upgrade) => {
-                        if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
-                            let oppUpgrade = { attachedTo: card.card, ...upgrade };
-                            if (card.hasOwnProperty('owner')) {
-                                oppUpgrade.attachedToOwner = card.owner;
-                            }
-                            opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
-                            card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
-                        }
-                    });
-                }
-            });
+            opponentAttachedUpgrades = opponentAttachedUpgrades.concat(this.getOpponentAttachedUpgrades(playerOptions.groundArena, playerNumber, oppOptions.groundArena, playerCards));
         }
-        if (arena === 'spaceArena' || arena === 'anyArena') {
-            const playerControlled = playerOptions.spaceArena?.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
+        if ((arena === 'spaceArena' || arena === 'anyArena') && playerOptions.spaceArena) {
+            const playerControlled = playerOptions.spaceArena.filter((card) => !card.hasOwnProperty('owner') && !card.owner?.endsWith(playerNumber));
             const oppControlled = oppOptions.spaceArena?.filter((card) => card.hasOwnProperty('owner') && card.owner?.endsWith(playerNumber));
             playerCards.spaceArena = (playerControlled || []).concat((oppControlled || []));
 
-            oppOptions.spaceArena?.forEach((card) => {
-                if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
-                    card.upgrades.forEach((upgrade) => {
-                        if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
-                            let oppUpgrade = { attachedTo: card.card, ...upgrade };
-                            if (card.hasOwnProperty('owner')) {
-                                oppUpgrade.attachedToOwner = card.owner;
-                            }
-                            opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
-                            card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
-                        }
-                    });
-                }
-            });
+            opponentAttachedUpgrades = opponentAttachedUpgrades.concat(this.getOpponentAttachedUpgrades(playerOptions.spaceArena, playerNumber, oppOptions.spaceArena, playerCards));
         }
 
         playerCards.opponentAttachedUpgrades = opponentAttachedUpgrades;
 
         return playerCards;
+    }
+
+    getOpponentAttachedUpgrades(arena, playerNumber, oppArena, playerCards) {
+        let opponentAttachedUpgrades = [];
+
+        oppArena?.forEach((card) => {
+            if (typeof card !== 'string' && card.hasOwnProperty('upgrades')) {
+                card.upgrades.forEach((upgrade) => {
+                    if (typeof upgrade !== 'string' && upgrade.hasOwnProperty('owner') && upgrade.owner.endsWith(playerNumber)) {
+                        let oppUpgrade = { attachedTo: card.card, ...upgrade };
+                        if (card.hasOwnProperty('owner')) {
+                            oppUpgrade.attachedToOwner = card.owner;
+                        }
+                        opponentAttachedUpgrades = opponentAttachedUpgrades.concat(oppUpgrade);
+                        card.upgrades.splice(card.upgrades.indexOf(upgrade), 1); // Dirty
+                    }
+                });
+            }
+        });
+        return opponentAttachedUpgrades;
     }
 
     customDeck(playerNumber, playerCards = {}, phase) {
