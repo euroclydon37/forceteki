@@ -20,10 +20,13 @@ describe('Zorii Bliss', function() {
 
                 // Attack with Zorii and draw a card; create delayed discard
                 context.player1.clickCard(context.zoriiBliss);
+                context.player1.clickCard(context.p2Base);
+
                 expect(context.player1.hand.length).toBe(2);
                 expect(context.battlefieldMarine).toBeInZone('hand', context.player1);
 
                 context.player2.clickCard(context.vanquish);
+                context.player2.clickCard(context.zoriiBliss);
 
                 // Move to regroup phase
                 context.moveToRegroupPhase();
@@ -68,10 +71,14 @@ describe('Zorii Bliss', function() {
 
                 // Attack with Zorii and draw a card; create delayed discard
                 context.player1.clickCard(context.zoriiBliss);
+                context.player1.clickCard(context.p2Base);
+
                 expect(context.player1.hand.length).toBe(1);
                 expect(context.battlefieldMarine).toBeInZone('hand', context.player1);
 
                 context.player2.clickCard(context.vanquish);
+                context.player2.clickCard(context.zoriiBliss);
+
                 context.player1.clickCard(context.battlefieldMarine);
 
                 // Move to regroup phase
