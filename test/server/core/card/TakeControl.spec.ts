@@ -121,9 +121,11 @@ describe('Take control system', function() {
                 context.player1.passAction();
                 context.player2.clickCard(context.takeCaptive);
                 context.player2.clickCard(context.lomPyke);
+                context.player2.clickCard(context.battlefieldMarine);
 
                 // flip Palpatine to take control of Lom Pyke
                 context.player1.clickCard(context.emperorPalpatine);
+                context.player1.clickCard(context.lomPyke);
             });
 
             it('it should keep captured cards', function () {
