@@ -1,4 +1,6 @@
 import { CardType, CardTypeFilter, ZoneName, ZoneFilter, MoveZoneDestination, DeckZoneDestination, RelativePlayer, WildcardCardType, WildcardZoneName } from '../Constants';
+import * as Contract from './Contract';
+import * as Helpers from './Helpers';
 
 // convert a set of strings to map to an enum type, throw if any of them is not a legal value
 export function checkConvertToEnum<T>(values: string[], enumObj: T): T[keyof T][] {
@@ -21,6 +23,7 @@ export function isEnumValue<T>(value: string, enumObj: T): boolean {
 }
 
 export const isArena = (zone: ZoneFilter) => {
+    Contract.assertNotNullLike(zone);
     switch (zone) {
         case ZoneName.GroundArena:
         case ZoneName.SpaceArena:
@@ -32,6 +35,7 @@ export const isArena = (zone: ZoneFilter) => {
 };
 
 export const isAttackableZone = (zone: ZoneFilter) => {
+    Contract.assertNotNullLike(zone);
     switch (zone) {
         case ZoneName.GroundArena:
         case ZoneName.SpaceArena:
@@ -44,6 +48,8 @@ export const isAttackableZone = (zone: ZoneFilter) => {
 };
 
 export const isHidden = (zone: ZoneFilter, controller: RelativePlayer) => {
+    Contract.assertNotNullLike(zone);
+    Contract.assertNotNullLike(controller);
     switch (zone) {
         case ZoneName.Hand:
         case ZoneName.Resource:
@@ -57,11 +63,9 @@ export const isHidden = (zone: ZoneFilter, controller: RelativePlayer) => {
 
 // return true if the card zone matches one of the allowed zone filters
 export const cardZoneMatches = (cardZone: ZoneName, zoneFilter: ZoneFilter | ZoneFilter[]) => {
-    if (!Array.isArray(zoneFilter)) {
-        zoneFilter = [zoneFilter];
-    }
-
-    return zoneFilter.some((allowedZone) => {
+    Contract.assertNotNullLike(cardZone);
+    Contract.assertNotNullLike(zoneFilter);
+    return Helpers.asArray(zoneFilter).some((allowedZone) => {
         switch (allowedZone) {
             case WildcardZoneName.Any:
                 return true;
@@ -77,16 +81,19 @@ export const cardZoneMatches = (cardZone: ZoneName, zoneFilter: ZoneFilter | Zon
 
 /** Converts a MoveZoneDestination to a ZoneName by converting deck move zones to ZoneName.Deck */
 export const asConcreteZone = (zoneName: ZoneName | MoveZoneDestination): ZoneName => {
+    Contract.assertNotNullLike(zoneName);
     return zoneName === DeckZoneDestination.DeckBottom || zoneName === DeckZoneDestination.DeckTop
         ? ZoneName.Deck
         : zoneName;
 };
 
 export const isDeckMoveZone = (zoneName: MoveZoneDestination): boolean => {
+    Contract.assertNotNullLike(zoneName);
     return zoneName === DeckZoneDestination.DeckBottom || zoneName === DeckZoneDestination.DeckTop;
 };
 
 export const isUnit = (cardType: CardTypeFilter) => {
+    Contract.assertNotNullLike(cardType);
     switch (cardType) {
         case WildcardCardType.Unit:
         case WildcardCardType.NonLeaderUnit:
@@ -100,6 +107,7 @@ export const isUnit = (cardType: CardTypeFilter) => {
 };
 
 export const isNonLeaderUnit = (cardType: CardTypeFilter) => {
+    Contract.assertNotNullLike(cardType);
     switch (cardType) {
         case WildcardCardType.NonLeaderUnit:
         case CardType.BasicUnit:
@@ -111,6 +119,7 @@ export const isNonLeaderUnit = (cardType: CardTypeFilter) => {
 };
 
 export const isUpgrade = (cardType: CardTypeFilter) => {
+    Contract.assertNotNullLike(cardType);
     switch (cardType) {
         case WildcardCardType.Upgrade:
         case CardType.BasicUpgrade:
@@ -122,6 +131,7 @@ export const isUpgrade = (cardType: CardTypeFilter) => {
 };
 
 export const isToken = (cardType: CardTypeFilter) => {
+    Contract.assertNotNullLike(cardType);
     switch (cardType) {
         case WildcardCardType.Token:
         case CardType.TokenUpgrade:
@@ -133,6 +143,7 @@ export const isToken = (cardType: CardTypeFilter) => {
 };
 
 export const isPlayable = (cardType: CardTypeFilter) => {
+    Contract.assertNotNullLike(cardType);
     switch (cardType) {
         case WildcardCardType.Playable:
         case CardType.Event:
@@ -147,11 +158,9 @@ export const isPlayable = (cardType: CardTypeFilter) => {
 // TODO THIS PR: null parameter checks throughout the file
 // return true if the card zone matches one of the allowed zone filters
 export const cardTypeMatches = (cardType: CardType, cardTypeFilter: CardTypeFilter | CardTypeFilter[]) => {
-    if (!Array.isArray(cardTypeFilter)) {
-        cardTypeFilter = [cardTypeFilter];
-    }
-
-    return cardTypeFilter.some((allowedCardType) => {
+    Contract.assertNotNullLike(cardType);
+    Contract.assertNotNullLike(cardTypeFilter);
+    return Helpers.asArray(cardTypeFilter).some((allowedCardType) => {
         switch (allowedCardType) {
             case WildcardCardType.Any:
                 return true;
@@ -172,6 +181,7 @@ export const cardTypeMatches = (cardType: CardType, cardTypeFilter: CardTypeFilt
 };
 
 export const getCardTypesForFilter = (cardTypeFilter: CardTypeFilter): CardType[] => {
+    Contract.assertNotNullLike(cardTypeFilter);
     switch (cardTypeFilter) {
         case WildcardCardType.Any:
             return [CardType.Base, CardType.Event, CardType.Leader, CardType.BasicUnit, CardType.BasicUpgrade, CardType.TokenUnit, CardType.TokenUpgrade, CardType.LeaderUnit];
