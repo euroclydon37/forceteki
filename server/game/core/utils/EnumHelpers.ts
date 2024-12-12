@@ -144,6 +144,7 @@ export const isPlayable = (cardType: CardTypeFilter) => {
     }
 };
 
+// TODO THIS PR: null parameter checks throughout the file
 // return true if the card zone matches one of the allowed zone filters
 export const cardTypeMatches = (cardType: CardType, cardTypeFilter: CardTypeFilter | CardTypeFilter[]) => {
     if (!Array.isArray(cardTypeFilter)) {
