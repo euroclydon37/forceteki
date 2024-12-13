@@ -1,7 +1,7 @@
-import AbilityHelper from "../../../AbilityHelper";
-import { CardType } from "../../../core/Constants";
-import { UpgradeCard } from "../../../core/card/UpgradeCard";
-import { CostAdjustType } from "../../../core/cost/CostAdjuster";
+import AbilityHelper from '../../../AbilityHelper';
+import { CardType } from '../../../core/Constants';
+import { UpgradeCard } from '../../../core/card/UpgradeCard';
+import { CostAdjustType } from '../../../core/cost/CostAdjuster';
 
 export default class StrategicAcument extends UpgradeCard {
     protected override getImplementationId() {
@@ -27,7 +27,7 @@ export default class StrategicAcument extends UpgradeCard {
                     amount: 1
                 }
             })
-        })
+        });
     }
 }
 
